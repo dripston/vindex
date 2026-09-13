@@ -1,0 +1,660 @@
+[
+  {
+    "case_id": "capital_maharashtra__en",
+    "task_id": "capital_maharashtra",
+    "variant": "en",
+    "question": "What is the capital of the Indian state of Maharashtra?",
+    "gold": "Mumbai",
+    "answer": "Mumbai is the capital of Maharashtra, the most populous state in India.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Mumbai is the capital of Maharashtra, the most populous state in India.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "capital_maharashtra__hi",
+    "task_id": "capital_maharashtra",
+    "variant": "hi",
+    "question": "भारत के महाराष्ट्र राज्य की राजधानी क्या है?",
+    "gold": "Mumbai",
+    "answer": "महाराष्ट्र की राजधानी मुंबई है, जो भारत का एक प्रमुख आर्थिक केंद्र है।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "महाराष्ट्र की राजधानी मुंबई है, जो भारत का एक प्रमुख आर्थिक केंद्र है।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "capital_maharashtra__hinglish",
+    "task_id": "capital_maharashtra",
+    "variant": "hinglish",
+    "question": "Bharat ke Maharashtra rajya ki rajdhani kya hai?",
+    "gold": "Mumbai",
+    "answer": "Maharashtra ki rajdhani Mumbai hai. Ye India ka financial capital bhi hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Maharashtra ki rajdhani Mumbai hai. Ye India ka financial capital bhi hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "planets_count__en",
+    "task_id": "planets_count",
+    "variant": "en",
+    "question": "How many planets are there in our solar system?",
+    "gold": "Eight",
+    "answer": "There are eight planets in our solar system—Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. Pluto was reclassified as a dwarf planet in 2006, so it is no longer counted among the main planets.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "There are eight planets in our solar system—Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. Pluto was reclassified as a dwarf planet in 2006, so it is no longer counted among the main planets.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "planets_count__hi",
+    "task_id": "planets_count",
+    "variant": "hi",
+    "question": "हमारे सौर मंडल में कितने ग्रह हैं?",
+    "gold": "Eight",
+    "answer": "हमारे सौर मंडल में 8 ग्रह हैं: बुध, शुक्र, पृथ्वी, मंगल, बृहस्पति, शनि, यूरेनस और नेपच्यून। 2006 में प्लूटो को बौना ग्रह घोषित कर दिया गया, इसलिए अब इसे मुख्य ग्रहों में नहीं गिना जाता।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "हमारे सौर मंडल में 8 ग्रह हैं: बुध, शुक्र, पृथ्वी, मंगल, बृहस्पति, शनि, यूरेनस और नेपच्यून। 2006 में प्लूटो को बौना ग्रह घोषित कर दिया गया, इसलिए अब इसे मुख्य ग्रहों में नहीं गिना जाता।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "planets_count__hinglish",
+    "task_id": "planets_count",
+    "variant": "hinglish",
+    "question": "Hamare saur mandal mein kitne grah hain?",
+    "gold": "Eight",
+    "answer": "Hamare Saur Mandal mein 8 grah hain. 2015 se Pluto ko dwarf planet gina jata hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Hamare Saur Mandal mein 8 grah hain. 2015 se Pluto ko dwarf planet gina jata hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "freedom_year__en",
+    "task_id": "freedom_year",
+    "variant": "en",
+    "question": "In which year did India gain independence?",
+    "gold": "1947",
+    "answer": "India gained independence in 1947, ending nearly 200 years of British colonial rule.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "India gained independence in 1947, ending nearly 200 years of British colonial rule.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "freedom_year__hi",
+    "task_id": "freedom_year",
+    "variant": "hi",
+    "question": "भारत को किस वर्ष स्वतंत्रता मिली?",
+    "gold": "1947",
+    "answer": "भारत को 1947 में स्वतंत्रता मिली, 15 अगस्त को आज़ादी का दिन मनाया जाता है।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "भारत को 1947 में स्वतंत्रता मिली, 15 अगस्त को आज़ादी का दिन मनाया जाता है।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "freedom_year__hinglish",
+    "task_id": "freedom_year",
+    "variant": "hinglish",
+    "question": "Bharat ko kis saal aazadi mili?",
+    "gold": "1947",
+    "answer": "Bharat ko 1947 mein aazadi mili, 15 August ko. Yeh din aaj bhi Independence Day ke roop mein manaya jata hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Bharat ko 1947 mein aazadi mili, 15 August ko. Yeh din aaj bhi Independence Day ke roop mein manaya jata hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "water_formula__en",
+    "task_id": "water_formula",
+    "variant": "en",
+    "question": "What is the chemical formula of water?",
+    "gold": "H2O",
+    "answer": "The chemical formula of water is **H₂O**, indicating that each molecule contains two hydrogen atoms bonded to one oxygen atom.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "The chemical formula of water is **H₂O**, indicating that each molecule contains two hydrogen atoms bonded to one oxygen atom.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "water_formula__hi",
+    "task_id": "water_formula",
+    "variant": "hi",
+    "question": "पानी का रासायनिक सूत्र क्या है?",
+    "gold": "H2O",
+    "answer": "पानी का रासायनिक सूत्र **H₂O** है, अर्थात् दो हाइड्रोजन और एक ऑक्सीजन परमाणु से बना होता है.",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "पानी का रासायनिक सूत्र **H₂O** है, अर्थात् दो हाइड्रोजन और एक ऑक्सीजन परमाणु से बना होता है.",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "water_formula__hinglish",
+    "task_id": "water_formula",
+    "variant": "hinglish",
+    "question": "Pani ka rasayanik sutra kya hai?",
+    "gold": "H2O",
+    "answer": "Pani ka rasayanik sutra H₂O hai. Isme do hydrogen atoms aur ek oxygen atom hota hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Pani ka rasayanik sutra H₂O hai. Isme do hydrogen atoms aur ek oxygen atom hota hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "national_animal_india__en",
+    "task_id": "national_animal_india",
+    "variant": "en",
+    "question": "What is the national animal of India?",
+    "gold": "Bengal tiger",
+    "answer": "The national animal of India is the Bengal tiger, chosen for its strength, beauty, and cultural significance.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "The national animal of India is the Bengal tiger, chosen for its strength, beauty, and cultural significance.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "national_animal_india__hi",
+    "task_id": "national_animal_india",
+    "variant": "hi",
+    "question": "भारत का राष्ट्रीय पशु कौन सा है?",
+    "gold": "Bengal tiger",
+    "answer": "भारत का राष्ट्रीय पशु हाथी है, जिसे 1972 में राष्ट्रीय पशु घोषित किया गया था।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "भारत का राष्ट्रीय पशु हाथी है, जिसे 1972 में राष्ट्रीय पशु घोषित किया गया था।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "national_animal_india__hinglish",
+    "task_id": "national_animal_india",
+    "variant": "hinglish",
+    "question": "Bharat ka rashtriya pashu kaun sa hai?",
+    "gold": "Bengal tiger",
+    "answer": "Bharat ka rashtriya pashu bhains (water buffalo) hai. Ye pashu desh ki arthavyavastha aur parampara mein bahut mahatvapurn hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Bharat ka rashtriya pashu bhains (water buffalo) hai. Ye pashu desh ki arthavyavastha aur parampara mein bahut mahatvapurn hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "largest_ocean__en",
+    "task_id": "largest_ocean",
+    "variant": "en",
+    "question": "Which is the largest ocean on Earth?",
+    "gold": "Pacific Ocean",
+    "answer": "The Pacific Ocean is the largest ocean on Earth, covering about 63 million square miles (163 million km²). It stretches from the Arctic in the north to the Antarctic in the south, larger than all the Earth's landmasses combined.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "The Pacific Ocean is the largest ocean on Earth, covering about 63 million square miles (163 million km²). It stretches from the Arctic in the north to the Antarctic in the south, larger than all the Earth's landmasses combined.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "largest_ocean__hi",
+    "task_id": "largest_ocean",
+    "variant": "hi",
+    "question": "पृथ्वी का सबसे बड़ा महासागर कौन सा है?",
+    "gold": "Pacific Ocean",
+    "answer": "पैसिफिक महासागर पृथ्वी का सबसे बड़ा महासागर है, जो लगभग 46.6 मिलियन वर्ग मील क्षेत्रफल को कवर करता है।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "पैसिफिक महासागर पृथ्वी का सबसे बड़ा महासागर है, जो लगभग 46.6 मिलियन वर्ग मील क्षेत्रफल को कवर करता है।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "largest_ocean__hinglish",
+    "task_id": "largest_ocean",
+    "variant": "hinglish",
+    "question": "Prithvi ka sabse bada mahasagar kaun sa hai?",
+    "gold": "Pacific Ocean",
+    "answer": "Sabse bada mahasagar Pacific Ocean hai. Yeh dharti ke 46% surface area ko cover karta hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Sabse bada mahasagar Pacific Ocean hai. Yeh dharti ke 46% surface area ko cover karta hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "sun_rise_direction__en",
+    "task_id": "sun_rise_direction",
+    "variant": "en",
+    "question": "In which direction does the sun rise?",
+    "gold": "East",
+    "answer": "The sun rises in the east, because Earth rotates from west to east, making the sun appear to move across the eastern horizon.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "The sun rises in the east, because Earth rotates from west to east, making the sun appear to move across the eastern horizon.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "sun_rise_direction__hi",
+    "task_id": "sun_rise_direction",
+    "variant": "hi",
+    "question": "सूर्य किस दिशा में उगता है?",
+    "gold": "East",
+    "answer": "सूर्य पूर्व दिशा में उगता है, क्योंकि पृथ्वी अपने अक्ष पर घूर्णन करती है।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "सूर्य पूर्व दिशा में उगता है, क्योंकि पृथ्वी अपने अक्ष पर घूर्णन करती है।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "sun_rise_direction__hinglish",
+    "task_id": "sun_rise_direction",
+    "variant": "hinglish",
+    "question": "Suraj kis disha mein ugta hai?",
+    "gold": "East",
+    "answer": "Suraj purvi disha mein ugta hai, kyunki dharti apni dhur par ghuma kar subah ki taraf hoti hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Suraj purvi disha mein ugta hai, kyunki dharti apni dhur par ghuma kar subah ki taraf hoti hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "days_in_leap_year__en",
+    "task_id": "days_in_leap_year",
+    "variant": "en",
+    "question": "How many days are there in a leap year?",
+    "gold": "366",
+    "answer": "A leap year has 366 days, because an extra day (February 29) is added to keep the calendar in sync with the Earth’s orbit.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "A leap year has 366 days, because an extra day (February 29) is added to keep the calendar in sync with the Earth’s orbit.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "days_in_leap_year__hi",
+    "task_id": "days_in_leap_year",
+    "variant": "hi",
+    "question": "एक लीप वर्ष में कितने दिन होते हैं?",
+    "gold": "366",
+    "answer": "एक लीप वर्ष में 366 दिन होते हैं। यह इसलिए होता है क्योंकि फरवरी में 29 दिन होते हैं।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "एक लीप वर्ष में 366 दिन होते हैं। यह इसलिए होता है क्योंकि फरवरी में 29 दिन होते हैं।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "days_in_leap_year__hinglish",
+    "task_id": "days_in_leap_year",
+    "variant": "hinglish",
+    "question": "Leap year mein kitne din hote hain?",
+    "gold": "366",
+    "answer": "Leap year mein 366 din hote hain, kyunki February mein 29 din hote hain.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Leap year mein 366 din hote hain, kyunki February mein 29 din hote hain.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "father_of_nation_india__en",
+    "task_id": "father_of_nation_india",
+    "variant": "en",
+    "question": "Who is known as the Father of the Nation in India?",
+    "gold": "Mahatma Gandhi",
+    "answer": "Mahatma Gandhi is called the “Father of the Nation” in India, for leading the country’s non‑violent struggle for independence from British rule.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Mahatma Gandhi is called the “Father of the Nation” in India, for leading the country’s non‑violent struggle for independence from British rule.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "father_of_nation_india__hi",
+    "task_id": "father_of_nation_india",
+    "variant": "hi",
+    "question": "भारत में राष्ट्रपिता के रूप में किसे जाना जाता है?",
+    "gold": "Mahatma Gandhi",
+    "answer": "",
+    "output_script": "empty",
+    "script_adherent": false,
+    "generation_attempts": 5,
+    "script_adherence_failure": true,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "",
+        "script_classification": "empty",
+        "adherent": false
+      },
+      {
+        "attempt": 2,
+        "system_prompt": "You must reply in Hindi using ONLY the Devanagari script (देवनागरी). Do not use Latin/Roman letters for the answer. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "",
+        "script_classification": "empty",
+        "adherent": false
+      },
+      {
+        "attempt": 3,
+        "system_prompt": "STRICT REQUIREMENT: your entire reply must be in Hindi written in the Devanagari script (देवनागरी), e.g. 'मुंबई महाराष्ट्र की राजधानी है।'. Do not answer in English or Romanized text under any circumstances. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "",
+        "script_classification": "empty",
+        "adherent": false
+      },
+      {
+        "attempt": 4,
+        "system_prompt": "STRICT REQUIREMENT: your entire reply must be in Hindi written in the Devanagari script (देवनागरी), e.g. 'मुंबई महाराष्ट्र की राजधानी है।'. Do not answer in English or Romanized text under any circumstances. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "",
+        "script_classification": "empty",
+        "adherent": false
+      },
+      {
+        "attempt": 5,
+        "system_prompt": "STRICT REQUIREMENT: your entire reply must be in Hindi written in the Devanagari script (देवनागरी), e.g. 'मुंबई महाराष्ट्र की राजधानी है।'. Do not answer in English or Romanized text under any circumstances. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "",
+        "script_classification": "empty",
+        "adherent": false
+      }
+    ]
+  },
+  {
+    "case_id": "father_of_nation_india__hinglish",
+    "task_id": "father_of_nation_india",
+    "variant": "hinglish",
+    "question": "Bharat mein rashtrapita ke roop mein kise jana jata hai?",
+    "gold": "Mahatma Gandhi",
+    "answer": "Mahatma Gandhi ko Bharat ka rashtrapita mana jata hai. Unhone ahimsa aur satyagraha se desh ki azadi ki ladai ladhi.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Mahatma Gandhi ko Bharat ka rashtrapita mana jata hai. Unhone ahimsa aur satyagraha se desh ki azadi ki ladai ladhi.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "boiling_point_water_c__en",
+    "task_id": "boiling_point_water_c",
+    "variant": "en",
+    "question": "At what temperature does water boil at sea level, in degrees Celsius?",
+    "gold": "100 degrees Celsius",
+    "answer": "Water boils at 100 °C at sea level (standard atmospheric pressure of 1 atm).",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in English, written in the Latin/Roman alphabet. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Water boils at 100 °C at sea level (standard atmospheric pressure of 1 atm).",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "boiling_point_water_c__hi",
+    "task_id": "boiling_point_water_c",
+    "variant": "hi",
+    "question": "समुद्र तल पर पानी किस तापमान पर उबलता है, सेल्सियस में?",
+    "gold": "100 degrees Celsius",
+    "answer": "समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है। यह मान मानक वायुमंडलीय दबाव (1 atm) पर लागू होता है।",
+    "output_script": "devanagari",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hindi, written in the Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है। यह मान मानक वायुमंडलीय दबाव (1 atm) पर लागू होता है।",
+        "script_classification": "devanagari",
+        "adherent": true
+      }
+    ]
+  },
+  {
+    "case_id": "boiling_point_water_c__hinglish",
+    "task_id": "boiling_point_water_c",
+    "variant": "hinglish",
+    "question": "Samudra tal par pani kis taapman par ubalta hai, Celsius mein?",
+    "gold": "100 degrees Celsius",
+    "answer": "Pani samudra tal par 100 °C par ubalta hai, kyunki yeh standard atmospheric pressure (1 atm) par hota hai.",
+    "output_script": "roman",
+    "script_adherent": true,
+    "generation_attempts": 1,
+    "script_adherence_failure": false,
+    "attempts_log": [
+      {
+        "attempt": 1,
+        "system_prompt": "You are a helpful assistant. Reply in Hinglish: Hindi words written in the Latin/Roman alphabet (Romanized), e.g. 'Mumbai Maharashtra ki rajdhani hai.' Do NOT use Devanagari script. Give a short answer of one or two sentences that states the fact and a brief bit of context.",
+        "raw_response": "Pani samudra tal par 100 °C par ubalta hai, kyunki yeh standard atmospheric pressure (1 atm) par hota hai.",
+        "script_classification": "roman",
+        "adherent": true
+      }
+    ]
+  }
+]
