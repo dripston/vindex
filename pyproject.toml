@@ -1,0 +1,60 @@
+[project]
+name = "vindex"
+version = "0.0.1"
+description = "Evaluation metrics for Indic and code-mixed LLM output."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "dripston" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/dripston/vindex"
+Repository = "https://github.com/dripston/vindex"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# experiments/ is deliberately exploratory code (see experiments/README.md)
+# and is never linted as part of the package; .agents/.claude are unrelated
+# tooling directories, not project content; script_check.py at repo root is
+# Milestone 1's not-yet-ported engine -- BUILD_PLAN.md 1.1 says port it
+# unchanged, don't touch it in Milestone 0.
+extend-exclude = ["experiments", ".agents", ".claude", "script_check.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+packages = ["vindex"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
