@@ -20,7 +20,7 @@ Output:
   Printed summary:
     adherence rate per variant under ORIGINAL vs STRICT, and the delta.
 
-Run:  python scripts/script_adherence_report.py
+Run:  python experiments/scripts/script_adherence_report.py
 """
 import os
 import sys
@@ -33,14 +33,20 @@ if __name__ == "__main__":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, REPO_ROOT)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+EXPERIMENTS_DIR = os.path.join(REPO_ROOT, "experiments")
+sys.path.insert(0, REPO_ROOT)  # script_check.py lives at repo root
 
 from script_check import classify, is_script_adherent  # noqa: E402
 
-ORIGINAL_JSON_PATH = os.path.join(REPO_ROOT, "results.json")
-CLEAN_JSON_PATH = os.path.join(REPO_ROOT, "results_clean.json")
-OUTPUT_CSV_PATH = os.path.join(REPO_ROOT, "results_clean", "script_adherence.csv")
+# This script's whole job is the before/after comparison of the two system
+# prompts, so it legitimately reads the contaminated file on purpose --
+# see Correction 1 in ARCHITECTURE.md: this is one of the two scripts
+# allowed to name results.json explicitly, because contrasting it against
+# the clean file IS the point, not a bug to route around.
+ORIGINAL_JSON_PATH = os.path.join(EXPERIMENTS_DIR, "results.json")
+CLEAN_JSON_PATH = os.path.join(REPO_ROOT, "data", "results_clean.json")
+OUTPUT_CSV_PATH = os.path.join(EXPERIMENTS_DIR, "results_clean", "script_adherence.csv")
 
 VARIANTS = ["en", "hi", "hinglish"]
 

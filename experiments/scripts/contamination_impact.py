@@ -1,8 +1,14 @@
 """
 Part 6: before/after comparison of the contamination fix.
 
+This script's whole job is the before/after diff, so it legitimately reads
+data derived from the contaminated results.json on purpose -- see
+Correction 1 in ARCHITECTURE.md. It doesn't open results.json itself, but
+OLD_SUMMARY_PATH below is a CSV computed FROM it (by discrimination.py, in
+an earlier run), which is the same thing one level removed.
+
 Reads the OLD (contaminated results.json -> results/discrimination_summary.csv)
-and NEW (clean results_clean.json -> results_clean/discrimination_summary.csv)
+and NEW (clean data/results_clean.json -> results_clean/discrimination_summary.csv)
 summary files already on disk -- NO encoder re-run, pure CSV arithmetic, since
 every metric needed is already a column in discrimination_summary.csv.
 
@@ -18,7 +24,7 @@ ROC AUC (hard negatives), one panel per variant, encoders on the x-axis
 
 Runnable standalone (assuming both discrimination_summary.csv files exist,
 which they do from prior runs):
-  python scripts/contamination_impact.py
+  python experiments/scripts/contamination_impact.py
 
 This script only computes numbers. It does not interpret them.
 """

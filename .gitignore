@@ -1,6 +1,11 @@
 __pycache__/
 *.pyc
-results_clean.checkpoint.json
+experiments/results_clean.checkpoint.json
 *.log
 .env
 encoder_cache/
+experiments/results_adherence/checkpoint.jsonl
+
+# Third-party data cloned locally for analysis only -- no license file
+# in the source repo (all rights reserved by default). Never commit.
+data/external/

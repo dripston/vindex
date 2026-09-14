@@ -1,0 +1,142 @@
+[
+  {
+    "q": "What is the capital of Maharashtra?",
+    "variant": "english",
+    "answer": "The capital of Maharashtra is Mumbai.",
+    "score": 1.0,
+    "reason": "The answer correctly states that Mumbai is the capital of Maharashtra, which is factually accurate. It directly addresses the question in a clear and concise manner, making it helpful. Therefore it meets all criteria for a high-quality response."
+  },
+  {
+    "q": "What is the capital of Maharashtra?",
+    "variant": "hinglish_roman",
+    "answer": "Maharashtra ki rajdhani Mumbai hai.",
+    "score": 1.0,
+    "reason": "The answer correctly states that the capital of Maharashtra is Mumbai, which is factually accurate. It directly addresses the question in a clear and concise manner, using a simple sentence. No errors or omissions are present, making it a fully correct and helpful response."
+  },
+  {
+    "q": "What is the capital of Maharashtra?",
+    "variant": "hinglish_codemix",
+    "answer": "Maharashtra ka capital Mumbai hai, jo ki state ka sabse bada city bhi hai.",
+    "score": 1.0,
+    "reason": "The assistant correctly identifies Mumbai as the capital of Maharashtra, states it clearly, and adds a helpful note that it is also the state's largest city. The answer is factually accurate, directly addresses the question, and is clear. Score: 5"
+  },
+  {
+    "q": "What is the capital of Maharashtra?",
+    "variant": "hinglish_convo",
+    "answer": "Arre haan, Maharashtra ki rajdhani toh Mumbai hi hai na. Wahi financial capital bhi hai India ka.",
+    "score": 1.0,
+    "reason": "The assistant correctly identifies Mumbai as the capital of Maharashtra, which is factually accurate. The response directly addresses the question, is clear, and adds a relevant note about Mumbai being India's financial capital, which is helpful but not required. No errors are present."
+  },
+  {
+    "q": "How many planets are in the solar system?",
+    "variant": "english",
+    "answer": "There are eight planets in the solar system.",
+    "score": 1.0,
+    "reason": "The answer directly addresses the question, is concise, and factually correct (the solar system has eight recognized planets). It is clear and helpful, meeting all evaluation criteria."
+  },
+  {
+    "q": "How many planets are in the solar system?",
+    "variant": "hinglish_roman",
+    "answer": "Solar system mein aath planets hain.",
+    "score": 1.0,
+    "reason": "The assistant correctly states that there are eight planets in the solar system, which is the accurate current count. The answer is clear, directly addresses the question, and is factually correct, even though it is in Hindi, which does not detract from its correctness. Score: 5"
+  },
+  {
+    "q": "How many planets are in the solar system?",
+    "variant": "hinglish_codemix",
+    "answer": "Solar system mein 8 planets hote hain, Pluto ko toh dwarf planet bana diya tha 2006 mein.",
+    "score": 1.0,
+    "reason": "The assistant correctly states that there are 8 planets in the solar system and explains that Pluto was reclassified as a dwarf planet in 2006, which directly answers the question accurately and clearly."
+  },
+  {
+    "q": "How many planets are in the solar system?",
+    "variant": "hinglish_convo",
+    "answer": "Dekho, pehle nau maante the but ab aath hi planets hain kyunki Pluto count nahi hota ab.",
+    "score": 1.0,
+    "reason": "The assistant correctly states that there are eight planets in the solar system, noting that Pluto is no longer counted. This directly answers the question with accurate information, and the explanation is clear, albeit in Hindi, but still understandable. Hence it meets the criteria for a correct, c"
+  },
+  {
+    "q": "Who is the Father of the Nation in India?",
+    "variant": "english",
+    "answer": "Mahatma Gandhi is the Father of the Nation in India.",
+    "score": 1.0,
+    "reason": "The answer correctly identifies Mahatma Gandhi as the Father of the Nation in India, which is factually accurate. It is concise, directly addresses the question, and provides a clear response without unnecessary information. Therefore it meets all criteria for a high-quality answer."
+  },
+  {
+    "q": "Who is the Father of the Nation in India?",
+    "variant": "hinglish_roman",
+    "answer": "Bharat ke rashtrapita Mahatma Gandhi hain.",
+    "score": 1.0,
+    "reason": "The assistant correctly identified Mahatma Gandhi as the Father of the Nation in India, using a clear and accurate statement in Hindi. The answer directly addresses the question and is factually correct, making it a high-quality response."
+  },
+  {
+    "q": "Who is the Father of the Nation in India?",
+    "variant": "hinglish_codemix",
+    "answer": "India ke Father of the Nation Mahatma Gandhi hain, unhe Bapu bhi bolte hain.",
+    "score": 1.0,
+    "reason": "The answer correctly identifies Mahatma Gandhi as the Father of the Nation in India, includes the common nickname 'Bapu', and directly addresses the question in a clear and concise manner. It is factually accurate and helpful."
+  },
+  {
+    "q": "Who is the Father of the Nation in India?",
+    "variant": "hinglish_convo",
+    "answer": "Gandhi ji ko hi rashtrapita kehte hain yaar, unhone hi non-violence se aazadi dilayi thi.",
+    "score": 1.0,
+    "reason": "The answer correctly identifies Mahatma Gandhi as the Father of the Nation (Rashtrapita) and adds a brief, relevant explanation about his role in achieving independence through non‑violence. It directly addresses the question, is factually accurate, clear, and helpful."
+  },
+  {
+    "q": "What is the chemical formula of water?",
+    "variant": "english",
+    "answer": "The chemical formula of water is H2O.",
+    "score": 1.0,
+    "reason": "The answer correctly states that the chemical formula of water is H2O, which directly addresses the question with a factually accurate and concise response. No additional information is needed, making it clear and helpful."
+  },
+  {
+    "q": "What is the chemical formula of water?",
+    "variant": "hinglish_roman",
+    "answer": "Paani ka chemical formula H2O hai.",
+    "score": 1.0,
+    "reason": "The answer correctly states that the chemical formula of water is H2O, using a clear and direct statement in Hindi. It is factually accurate, directly addresses the question, and is understandable. Hence it meets all criteria for a high-quality answer."
+  },
+  {
+    "q": "What is the chemical formula of water?",
+    "variant": "hinglish_codemix",
+    "answer": "Water ka formula H2O hota hai - do hydrogen aur ek oxygen atom.",
+    "score": 1.0,
+    "reason": "The assistant correctly states that the chemical formula of water is H2O, and clarifies it consists of two hydrogen atoms and one oxygen atom. This directly answers the question, is factually accurate, clear, and helpful."
+  },
+  {
+    "q": "What is the chemical formula of water?",
+    "variant": "hinglish_convo",
+    "answer": "H2O hota hai bhai, do hydrogen ek oxygen. School mein padha tha na?",
+    "score": 1.0,
+    "reason": "The assistant correctly states the chemical formula of water as H2O, explaining that it consists of two hydrogen atoms and one oxygen atom. This directly answers the question accurately and clearly, making it a helpful response."
+  },
+  {
+    "q": "In which direction does the sun rise?",
+    "variant": "english",
+    "answer": "The sun rises in the east.",
+    "score": 1.0,
+    "reason": "The answer directly addresses the question, stating that the sun rises in the east. This is factually correct, concise, and fully answers the query without unnecessary information. Hence it meets all criteria for a high-quality response."
+  },
+  {
+    "q": "In which direction does the sun rise?",
+    "variant": "hinglish_roman",
+    "answer": "Suraj purab disha mein ugta hai.",
+    "score": 1.0,
+    "reason": "The answer states that the sun rises in the east ('purab disha'), which directly and accurately answers the question. It is clear, factually correct, and helpful."
+  },
+  {
+    "q": "In which direction does the sun rise?",
+    "variant": "hinglish_codemix",
+    "answer": "Sun east direction mein rise karta hai, Earth ki rotation ki wajah se.",
+    "score": 1.0,
+    "reason": "The answer correctly states that the sun rises in the east and even gives a brief explanation about Earth's rotation. It directly addresses the question, is factually accurate, and is clear despite mixing Hindi and English, which does not hinder understanding. Therefore it meets the criteria for a h"
+  },
+  {
+    "q": "In which direction does the sun rise?",
+    "variant": "hinglish_convo",
+    "answer": "Purab mein ugta hai na suraj, ye toh basic hai.",
+    "score": 1.0,
+    "reason": "The assistant correctly states that the sun rises in the east (Purab), which directly answers the question. The answer is factually accurate, clear, and helpful despite being in Hindi, but the content is correct and complete."
+  }
+]

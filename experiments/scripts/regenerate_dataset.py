@@ -28,7 +28,7 @@ alongside it, with the same schema plus:
 Checkpointed to disk after every case (results_clean.checkpoint.json) so a
 crash mid-run does not lose completed work; reruns resume from there.
 
-Run:  python scripts/regenerate_dataset.py
+Run:  python experiments/scripts/regenerate_dataset.py
 """
 import io
 import sys
@@ -40,8 +40,10 @@ if __name__ == "__main__":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, REPO_ROOT)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+EXPERIMENTS_DIR = os.path.join(REPO_ROOT, "experiments")
+sys.path.insert(0, REPO_ROOT)          # script_check.py lives at repo root
+sys.path.insert(0, EXPERIMENTS_DIR)    # testcases.py lives in experiments/
 
 # --- load .env (same pattern as run_experiment.py) ---
 ENV = {}
@@ -59,8 +61,8 @@ from script_check import classify, is_script_adherent
 
 MODEL_UNDER_TEST = "openai/gpt-oss-20b"
 MAX_ATTEMPTS = 5
-CHECKPOINT_PATH = os.path.join(REPO_ROOT, "results_clean.checkpoint.json")
-OUTPUT_PATH = os.path.join(REPO_ROOT, "results_clean.json")
+CHECKPOINT_PATH = os.path.join(EXPERIMENTS_DIR, "results_clean.checkpoint.json")
+OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "results_clean.json")
 
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
