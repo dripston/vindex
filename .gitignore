@@ -9,3 +9,10 @@ experiments/results_adherence/checkpoint.jsonl
 # Third-party data cloned locally for analysis only -- no license file
 # in the source repo (all rights reserved by default). Never commit.
 data/external/
+
+# Credentials that sometimes land in this directory via browser downloads
+# (e.g. PyPI/GitHub recovery codes, API tokens). Never commit these --
+# move them out of the repo entirely, this is just a safety net.
+*Recovery-Codes*
+*.pypirc
+.pypirc

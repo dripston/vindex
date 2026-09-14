@@ -10,7 +10,7 @@ The table below is the original 0.1 audit and describes the **pre-reorg**
 repo layout (root-level `results.json`, `scripts/`, `results/`, etc.).
 Three corrections were applied on top of it during the 0.2 reorganisation;
 read these first, then treat every path in the table below as historical
-— the current layout is `experiments/`, `data/`, `src/pramana/`, `tests/`,
+— the current layout is `experiments/`, `data/`, `src/vindex/`, `tests/`,
 `docs/`, with `script_check.py` kept at repo root. See
 `experiments/README.md` for the current, path-accurate file notes.
 
@@ -50,7 +50,7 @@ matters when this file is read months from now.
 **Columns:**
 - **What it does** — one line.
 - **Kind** — `exploratory` (one-off, answered a question, not meant to be
-  reused as a library) or `reusable` (intended to survive into `pramana`
+  reused as a library) or `reusable` (intended to survive into `vindex`
   or is load-bearing infrastructure other files depend on).
 - **Depends on** — other repo files it imports or reads at runtime. Blank
   if self-contained (stdlib + third-party packages only).
@@ -72,7 +72,7 @@ matters when this file is read months from now.
 
 | File | What it does | Kind | Depends on | Reads `results.json`? | Outputs still valid? |
 |---|---|---|---|---|---|
-| `BUILD_PLAN.md` | The 5-milestone plan for turning this repo into the `pramana` package. Not code. | reusable (planning doc) | — | N | Yes — this is the plan being executed. |
+| `BUILD_PLAN.md` | The 5-milestone plan for turning this repo into the `vindex` package (named `pramana` in early planning; `pramana` was found to be taken on PyPI during Milestone 0.3 and the package was renamed to `vindex`). Not code. | reusable (planning doc) | — | N | Yes — this is the plan being executed. |
 | `FINDINGS.md` | Write-up of the very first experiment (0.1): does exact-match/similarity break across scripts, does an English LLM judge penalize Hinglish. Uses `run_experiment.py` + `results.json` + `all-MiniLM-L6-v2` only. | exploratory | `run_experiment.py`, `results.json` (as data, referenced) | indirect (documents results computed from it) | **Partially superseded.** The "does judge bias exist" and "does exact-match break" conclusions stand on their own logic. But the specific EN/HI/Hinglish similarity numbers it quotes came from (a) an English-only encoder (superseded by the multi-encoder rerun — the "script gap" turned out to be an encoder artifact, not a script property) and (b) pre-contamination-fix data (the Hinglish column was often secretly Devanagari). See `experiments/README.md`. |
 | `analyze.py` | Standalone script: reads `results.json` directly and prints a deeper per-case breakdown (similarity gaps, threshold sweep, judge mistranslation flags) for the `FINDINGS.md` write-up. | **archived — do not run** (Correction 3: reclassified from "broken"; it answered a real question in week one and was superseded, not broken) | `results.json` (hardcoded, unconditional, by design — this file's whole job was a `results.json`-only deep-dive) | **Y** (hardcoded; archived rather than given a clean-data path, since it's superseded) | No — contaminated input only. Superseded by `scripts/contamination_impact.py` and `scripts/discrimination.py`. |
 | `run_experiment.py` | The **original** experiment: generates 30 model answers (EN/HI/Hinglish × 10 tasks) with the "same language and script" system prompt, scores them with a DeepEval LLM judge + exact-match + MiniLM similarity, **writes `results.json`**. | exploratory | Groq API, `testcases.py`, DeepEval, sentence-transformers | **writes** it (not a reader) | The *generation event* that produced the contaminated file. Its own analysis (printed summary) is superseded by later runs; the file it produces (`results.json`) is kept on purpose as the "before" side of every contamination comparison. |

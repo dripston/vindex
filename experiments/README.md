@@ -1,7 +1,7 @@
 # experiments/ — what each asked, what it found, whether it survived
 
 Everything here is exploratory: it answered a question, it is not meant
-to be imported as a library. `src/pramana/` is where validated logic
+to be imported as a library. `src/vindex/` is where validated logic
 gets ported once a milestone says to port it. Nothing in this directory
 is deleted, even when superseded -- superseded results stay on the
 record so nobody re-derives a wrong number from scratch.
