@@ -170,3 +170,96 @@ def test_real_contaminated_hinglish_answer_not_adherent_for_hinglish() -> None:
 def test_real_roman_hinglish_answer_is_adherent() -> None:
     good_hinglish = "Hamare saur mandal mein aath grah hain."
     assert is_script_adherent(good_hinglish, "hinglish") is True
+
+
+# ---------------------------------------------------------------------------
+# Milestone 1.2: extend to 8 scripts. One real sentence per script, each
+# fetched from that language's own Wikipedia (first sentence of a real
+# article), not written or translated by hand. Source URL is next to each
+# sentence so the provenance is checkable.
+# ---------------------------------------------------------------------------
+
+
+def test_classify_kannada() -> None:
+    # kn.wikipedia.org/wiki/ಬೆಂಗಳೂರು (Bangalore), first sentence.
+    # "Bangalore is the largest city and capital center of Karnataka state."
+    text = "ಬೆಂಗಳೂರು ಕರ್ನಾಟಕ ರಾಜ್ಯದ ಅತಿ ದೊಡ್ಡ ನಗರ ಮತ್ತು ರಾಜಧಾನಿ ಕೇಂದ್ರ"
+    assert classify(text) == "kannada"
+
+
+def test_classify_tamil() -> None:
+    # ta.wikipedia.org/wiki/சென்னை (Chennai), first sentence.
+    # "Chennai is the capital of Tamil Nadu and India's fourth largest city."
+    text = "சென்னை தமிழ்நாட்டின் தலைநகரமும், இந்தியாவின் நான்காவது பெரிய நகரமும் ஆகும்."
+    assert classify(text) == "tamil"
+
+
+def test_classify_telugu() -> None:
+    # te.wikipedia.org/wiki/హైదరాబాద్_రాజ్యం (Hyderabad State), first sentence.
+    # "The Hyderabad State was formerly the largest princely state under
+    #  the rule of the Nizams in the Indian Empire."
+    text = (
+        "హైదరాబాద్ రాజ్యం ఒకప్పటి భారత సామ్రాజ్యంలో నిజాముల ఆధ్వర్యంలో "
+        "ఉన్న అతిపెద్ద రాచరిక రాష్ట్రం."
+    )
+    assert classify(text) == "telugu"
+
+
+def test_classify_bengali() -> None:
+    # bn.wikipedia.org/wiki/ঢাকা (Dhaka), first sentence.
+    # "Dhaka is the capital and largest metropolitan area or city of
+    #  Bangladesh."
+    text = "ঢাকা বাংলাদেশের রাজধানী ও মহানগর বা বৃহত্তম শহর।"
+    assert classify(text) == "bengali"
+
+
+def test_classify_gujarati() -> None:
+    # gu.wikipedia.org/wiki/અમદાવાદ (Ahmedabad), first sentence.
+    # "Ahmedabad is the largest city in Gujarat state and ranks as India's
+    #  fifth most populous city overall, and seventh by urban population."
+    text = (
+        "અમદાવાદ ગુજરાત રાજ્યનું સૌથી મોટુંં અને વસ્તી પ્રમાણે ભારતનું "
+        "પાંચમા અને શહેરી વસ્તી પ્રમાણે સાતમે ક્રમનું શહેર છે."
+    )
+    assert classify(text) == "gujarati"
+
+
+def test_classify_malayalam() -> None:
+    # ml.wikipedia.org/wiki/കൊച്ചി (Kochi), first sentence.
+    # "Kochi is a major city in the coastal state of Kerala in India."
+    text = "ഇന്ത്യയിലെ തീരദേശ കേരള സംസ്ഥാനത്തിലെ ഒരു വലിയ നഗരമാണ് കൊച്ചി."
+    assert classify(text) == "malayalam"
+
+
+def test_classify_odia() -> None:
+    # or.wikipedia.org/wiki/ଭୁବନେଶ୍ୱର (Bhubaneswar), first sentence.
+    # "Bhubaneswar is the capital of Odisha."
+    text = "ଭୁବନେଶ୍ୱର ଓଡ଼ିଶାର ରାଜଧାନୀ ।"
+    assert classify(text) == "odia"
+
+
+def test_classify_gurmukhi() -> None:
+    # pa.wikipedia.org/wiki/ਪੰਜਾਬ (Punjab), first sentence.
+    # "Punjab is a geographic, cultural, and historical region in
+    #  North-South Asia."
+    text = "ਪੰਜਾਬ ਉੱਤਰ-ਦੱਖਣੀ ਏਸ਼ੀਆ ਵਿੱਚ ਇੱਕ ਭੂਗੋਲਿਕ, ਸੱਭਿਆਚਾਰਕ ਅਤੇ ਇਤਿਹਾਸਕ ਖਿੱਤਾ ਹੈ।"
+    assert classify(text) == "gurmukhi"
+
+
+def test_classify_devanagari_still_works_after_generalization() -> None:
+    # Regression check: the pre-1.2 Devanagari-only behavior must be
+    # unchanged now that classify() picks a dominant script generically.
+    text = "महाराष्ट्र की राजधानी मुंबई है।"
+    assert classify(text) == "devanagari"
+
+
+def test_danda_punctuation_does_not_misclassify_bengali_as_devanagari() -> None:
+    # Known limitation (see script.py's module docstring): the danda (।)
+    # lives in the Devanagari Unicode block but is used as end-of-sentence
+    # punctuation in Bengali too. One stray devanagari_char must not flip
+    # classify() away from the actually-dominant script.
+    text = "ঢাকা বাংলাদেশের রাজধানী ও মহানগর বা বৃহত্তম শহর।"
+    counts = count_scripts(text)
+    assert counts["devanagari_chars"] == 1  # the danda
+    assert counts["bengali_chars"] > counts["devanagari_chars"]
+    assert classify(text) == "bengali"

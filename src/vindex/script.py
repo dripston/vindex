@@ -5,56 +5,112 @@ Used to verify that a model's response is actually written in the script
 the experiment asked for -- e.g. that a "Romanized Hinglish" answer is
 actually in Roman letters, not Devanagari.
 
-Ported from the repo root's script_check.py (Milestone 1.1). The
-character-counting logic below is unchanged from that file -- it's
-tested and validated on 90 real responses. Only the API around it
-(type hints, module location) was cleaned up.
+Ported from the repo root's script_check.py (Milestone 1.1); the
+Devanagari-vs-Latin character-counting logic there is unchanged here --
+it's tested and validated on 90 real responses. Milestone 1.2 generalizes
+that same ratio logic ("dominant script wins if it outnumbers Latin;
+Latin wins if it outnumbers the dominant script more than 2:1; otherwise
+mixed") from a Devanagari-only special case to any of the 8 additional
+Indic scripts below, keeping the original thresholds and tie-breaking.
+
+Unicode block ranges (verified against unicode.org/Wikipedia's Unicode
+block pages):
+  Devanagari : U+0900-U+097F
+  Gurmukhi   : U+0A00-U+0A7F
+  Gujarati   : U+0A80-U+0AFF
+  Odia       : U+0B00-U+0B7F  (Unicode block name: "Oriya")
+  Tamil      : U+0B80-U+0BFF
+  Telugu     : U+0C00-U+0C7F
+  Kannada    : U+0C80-U+0CFF
+  Malayalam  : U+0D00-U+0D7F
+  Bengali    : U+0980-U+09FF
+
+KNOWN LIMITATION: the danda and double danda (।, ॥ -- U+0964, U+0965) are
+placed in the Unicode Devanagari block, but are used as sentence-ending
+punctuation across most of the scripts above (Bengali, Odia, Gurmukhi,
+Gujarati, etc. generally don't have their own script-specific full stop
+and reuse these). A pure-Bengali/Odia/Gurmukhi/etc. sentence can
+therefore show 1-2 stray devanagari_chars from its own punctuation. This
+does not change classify()'s output in practice -- the dominant script's
+character count is far larger than a couple of punctuation marks in any
+real sentence -- but it means devanagari_chars is not a perfectly pure
+signal of "this text contains Devanagari letters." Documented here
+rather than special-cased, to keep the ported character-counting logic
+exactly as validated in Milestone 1.1.
 """
 
 from __future__ import annotations
 
 import re
 
-DEVANAGARI_RE = re.compile(r"[ऀ-ॿ]")
+SCRIPT_RANGES: dict[str, str] = {
+    "devanagari": r"ऀ-ॿ",
+    "gurmukhi": r"਀-੿",
+    "gujarati": r"઀-૿",
+    "odia": r"଀-୿",
+    "tamil": r"஀-௿",
+    "telugu": r"ఀ-౿",
+    "kannada": r"ಀ-೿",
+    "malayalam": r"ഀ-ൿ",
+    "bengali": r"ঀ-৿",
+}
+
+SCRIPT_RES: dict[str, re.Pattern[str]] = {
+    name: re.compile(f"[{block}]") for name, block in SCRIPT_RANGES.items()
+}
+
+DEVANAGARI_RE = SCRIPT_RES["devanagari"]  # kept for backward compatibility
 LATIN_ALPHA_RE = re.compile(r"[A-Za-z]")
 
 
 def count_scripts(text: str | None) -> dict[str, int]:
     """Count characters by script bucket.
 
-    devanagari_chars : Unicode U+0900-U+097F (Devanagari block)
-    latin_alpha_chars: ASCII alphabetic (A-Z, a-z)
-    other_chars      : everything else (digits, punctuation, whitespace,
-                        symbols, non-Devanagari/non-Latin scripts)
+    <script>_chars    : one key per script in SCRIPT_RANGES (devanagari,
+                         gurmukhi, gujarati, odia, tamil, telugu, kannada,
+                         malayalam, bengali), each counting characters in
+                         that script's Unicode block.
+    latin_alpha_chars : ASCII alphabetic (A-Z, a-z)
+    other_chars       : everything else (digits, punctuation, whitespace,
+                         symbols, any script not listed above)
     """
     text = text or ""
-    devanagari_chars = len(DEVANAGARI_RE.findall(text))
+    counts = {f"{name}_chars": len(pattern.findall(text)) for name, pattern in SCRIPT_RES.items()}
     latin_alpha_chars = len(LATIN_ALPHA_RE.findall(text))
-    other_chars = len(text) - devanagari_chars - latin_alpha_chars
-    return {
-        "devanagari_chars": devanagari_chars,
-        "latin_alpha_chars": latin_alpha_chars,
-        "other_chars": other_chars,
-    }
+    other_chars = len(text) - sum(counts.values()) - latin_alpha_chars
+    counts["latin_alpha_chars"] = latin_alpha_chars
+    counts["other_chars"] = other_chars
+    return counts
 
 
 def classify(text: str | None) -> str:
     """Classify a string's dominant script.
 
     empty      : blank or whitespace only
-    devanagari : devanagari_chars > latin_alpha_chars
-    roman      : latin_alpha_chars > devanagari_chars * 2
-    mixed      : otherwise (includes ties, and cases where devanagari_chars
-                 <= latin_alpha_chars <= devanagari_chars * 2)
+    <script>   : one non-Latin script (e.g. "devanagari", "tamil") has more
+                 characters than Latin, AND is the largest non-Latin
+                 script present (ties broken by SCRIPT_RANGES iteration
+                 order, devanagari first, matching the original
+                 Devanagari-only behavior for pure-Devanagari text)
+    roman      : latin_alpha_chars > dominant_script_chars * 2
+    mixed      : otherwise (includes ties, and cases where
+                 dominant_script_chars <= latin_alpha_chars <=
+                 dominant_script_chars * 2)
+
+    For Devanagari-vs-Latin-only text, this reproduces the original
+    script_check.py behavior exactly: dominant_script_chars is
+    devanagari_chars, so "d > l" / "l > d * 2" are unchanged.
     """
     if text is None or text.strip() == "":
         return "empty"
     counts = count_scripts(text)
-    d = counts["devanagari_chars"]
+    dominant_script, dominant_n = max(
+        ((name, counts[f"{name}_chars"]) for name in SCRIPT_RANGES), key=lambda kv: kv[1]
+    )
     l = counts["latin_alpha_chars"]  # noqa: E741 -- ported unchanged from script_check.py
-    if d > l:
-        return "devanagari"
-    if l > d * 2:
+    if dominant_n > l:
+        return dominant_script
+    if l > dominant_n * 2:
         return "roman"
     return "mixed"
 
