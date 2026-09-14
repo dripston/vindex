@@ -82,6 +82,19 @@ questions, regenerated under the strict prompt). See
   change (`scripts/script_adherence_report.py`,
   `results_clean/script_adherence.csv`).
 
+## The vindex port is validated against this finding
+
+`scripts/validate_vindex_port.py` (Milestone 1.6) re-runs the 20%/100%
+Hinglish adherence check above through `src/vindex/`'s ported and shipped
+code instead of `script_check.py` directly -- both the ported
+`is_script_adherent(answer, variant)` (methodologically identical to
+`script_adherence_report.py`) and the new prompt-driven
+`vindex.script_adherence(question, answer)` public metric (Milestone
+1.4). Both reproduce 20% under the original prompt and 100% under the
+strict one, exactly. This is why `experiments/results.json` stays in the
+repo rather than being deleted once `data/results_clean.json` existed:
+it is the fixture this regression check runs against.
+
 ## File-by-file notes not already covered above
 
 - **`analyze.py`** -- ARCHIVED, do not run. Deeper per-case read of
