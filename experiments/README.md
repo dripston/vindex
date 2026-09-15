@@ -248,6 +248,59 @@ documented Phase 0 failure doesn't recur; it is not a substitute for
 that study, and `indic_judge`'s docs say so explicitly rather than
 implying broader validation than exists.
 
+## Milestone 6: judge_trace_check catches the same-family error class it was built for -- but the dictionary is still empty
+
+`src/vindex/judge_trace_check.py`'s `check_trace()` is the mechanism
+Minakshi named as the worrying one: the समुद्र तल error happens inside
+a judge's reasoning before any output exists, so nothing downstream
+(script_adherence, a transliteration layer, WER) can catch it. Tested
+with the exact समुद्र तल case (injected as a `TrapWord` fixture, since
+the shipped dictionary is currently empty -- see below): a trace that
+substitutes "sea floor" for "sea level" is correctly flagged; a trace
+that reads it correctly passes; a trace that mentions both readings
+while correctly reasoning through the ambiguity is correctly NOT
+flagged (a judge working through an ambiguity is not the same as a
+judge misreading one). The उत्तर ("north" vs "answer") case from
+BUILD_PLAN.md 6.1 was also tested and correctly caught. See
+`tests/test_judge_trace_check.py`.
+
+**The shipped dictionary (`data/trap_words/`) has 0 usable entries as
+of this writing.** Both `hindiwic_inventory.csv` (60 HindiWiC words)
+and `own_additions.csv` (15 hand-authored terms) ship with
+`suggested_reading_a`/`suggested_reading_b` blank -- BUILD_PLAN.md 6.1
+is explicit that filling these in is the project owner's own work, not
+something to automate ("about an hour, and it's your work, not your
+agent's"). `check_trace()` correctly reports `dictionary_size: 0` and
+passes everything when called with the real (currently empty)
+dictionary -- this is the honest behavior the module is designed to
+have, not a placeholder to silently work around.
+
+**Milestone 6.4 (optional LLM fallback)** was tested for real: कल
+("kal" -- tense-ambiguous, "yesterday" or "tomorrow" depending on
+grammatical context elsewhere in the sentence, not a fixed word-pair a
+dictionary entry can represent) is exactly the category the dictionary
+structurally cannot catch. `check_trace_llm_fallback()` correctly
+caught a mistranslation of it via a real Groq call, using
+align-then-judge (Sarvam's shape) to send only the mismatched segment,
+not the full text. The exact-alignment shortcut (no LLM call when
+trace and source already match) was also confirmed: 0.001s, no call
+made.
+
+**Milestone 6.3 (validate with ~60 traces) has not been run.** It
+requires human labor this project's own bias protocol makes explicit:
+generate ~30 trap-seeded questions, get model answers from a pinned
+run, capture full judge reasoning traces reference-free, then two
+people -- the project owner and one other fluent Hindi speaker,
+independently, on a blinded sheet, against a rubric frozen before
+grading starts, with 30% held out and never looked at while tuning --
+grade all 60 and their agreement is computed. None of that has
+happened. **Milestone 6.5 (publish the precision/recall number) is
+correspondingly not done either** -- there is no number to publish
+yet, honest or otherwise, and this project's own principle (a 60%
+catch rate at 15% false positives, honestly reported, beats a vague
+claim of working well) cuts the other way just as hard against
+publishing a number that was never actually measured.
+
 ## The vindex port is validated against this finding
 
 `scripts/validate_vindex_port.py` (Milestone 1.6) re-runs the 20%/100%

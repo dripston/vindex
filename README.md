@@ -93,6 +93,41 @@ not a silent pass. Requires the `judge` extra (the `groq` SDK) and a
 `GROQ_API_KEY`. See the Limitations section for what this metric does
 not (yet) do.
 
+```python
+from vindex import check_trace
+from vindex.trap_words import TrapWord
+
+# Does a judge's own reasoning trace correctly read the source, or did
+# it silently misread a known ambiguous term? Works on ANY judge's
+# trace, not only indic_judge's -- pass any reasoning text. The shipped
+# dictionary ships EMPTY (see Limitations) -- pass your own trap_words
+# until it's filled in, as shown here.
+samudra_tal = TrapWord(term="समुद्र तल", reading_a="sea level", reading_b="sea floor", source="own")
+
+result = check_trace(
+    source="समुद्र तल पर पानी किस तापमान पर उबलता है?",
+    trace="The question asks for the boiling point at the sea floor...",
+    trap_words=[samudra_tal],
+)
+
+print(result.label)   # "misread_detected"
+print(result.passed)  # False
+```
+
+`check_trace(source, trace, trap_words=None)` is a deterministic,
+dictionary-based check -- no LLM call, free, instant, reproducible.
+The error it catches happens *inside* a judge's reasoning before any
+output exists, so nothing else in this package (or in a
+transliteration layer, or WER) can catch it. The honest claim: this
+detects mistranslation of the N known ambiguous terms in
+`vindex.trap_words.load_trap_words()`, not mistranslation in general
+-- see the Limitations section for what N currently is and why.
+`check_trace_llm_fallback(source, trace, judge, trap_words=None)` is
+an opt-in second mode (Sarvam's align-then-judge shape) for
+mistranslation categories a fixed dictionary structurally cannot catch
+-- a real LLM call, only on the segments that don't align, defaulting
+to flagging when the judge's own answer is ambiguous.
+
 ## The finding this package is built around
 
 Same model, same 30 questions, one system-prompt change. The first
@@ -247,3 +282,33 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   call is a real LLM call -- there is no free shortcut for the
   recommended mode. This is inherent to reference-free judging, not a
   missed optimization.
+- **`check_trace`'s dictionary currently has 0 entries.**
+  `data/trap_words/hindiwic_inventory.csv` (60 HindiWiC-sourced
+  polysemous Hindi nouns) and `data/trap_words/own_additions.csv` (15
+  hand-authored terms) both ship with their `reading_a`/`reading_b`
+  columns blank on purpose -- filling them in requires a fluent Hindi
+  speaker's judgment call per term, and is explicitly human work, not
+  something this library or an agent does (see
+  `vindex/trap_words.py`'s module docstring). `check_trace` currently
+  returns `no_misread_detected` on every input for that reason -- an
+  honest "nothing in an empty dictionary was misread," not a claim
+  that no mistranslation exists. Pass your own `trap_words=[...]` to
+  use it today; the shipped dictionary grows as the CSVs get filled
+  in.
+- **`check_trace` only catches mistranslation of a term already in the
+  dictionary.** By design (Milestone 6.2's honest claim: "detects
+  mistranslation of N known ambiguous terms," never "detects
+  mistranslation"). A term not yet in the dictionary, or an ambiguity
+  that isn't a fixed word-pair (e.g. tense-flip words like कल,
+  "yesterday" or "tomorrow" depending on grammatical context
+  elsewhere in the sentence), needs `check_trace_llm_fallback` instead
+  -- and even that is scoped to the segments that don't align, not a
+  general mistranslation detector.
+- **`check_trace`'s precision and recall have not been measured.**
+  Needs a real ~60-trace human-agreement study with a strict bias
+  protocol (labels committed before the metric is written, a blind
+  sheet, no cross-visibility between two independent annotators, a
+  frozen rubric, a 30% holdout, disclosed self-annotation) that has
+  not been run yet. Don't present `check_trace` as validated at any
+  particular precision/recall until that study exists and its number
+  -- whatever it is -- is published alongside it.
