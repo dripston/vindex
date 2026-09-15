@@ -82,6 +82,69 @@ questions, regenerated under the strict prompt). See
   change (`scripts/script_adherence_report.py`,
   `results_clean/script_adherence.csv`).
 
+## Milestone 2 beats the exact-match baseline -- with the number, and its limit
+
+`scripts/beat_the_baseline.py` (Milestone 2.4) re-runs the same 30
+(answer, gold) pairs from `data/results_clean.json` that produced the
+0/30 finding above, through `vindex.match`'s three modes, using each
+task's register-matched full-sentence gold
+(`gold_en_full`/`gold_hi_full`/`gold_hinglish_full` in
+`testcases.py`) instead of the bare-entity gold the 0/30 baseline used.
+
+The honest result: **`exact_match_score` is ALSO 0/30.** This is not a
+vindex bug and not a script problem -- it is a property of the task.
+Real model answers add context beyond the fact ("Mumbai is the capital
+of Maharashtra, the most populous state in India" against a gold of
+"The capital of Maharashtra is Mumbai."), so no answer in this dataset
+is ever a pure string match against any gold, however well-normalized.
+Exact match cannot beat this baseline, on this data, and no amount of
+script/diacritic/numeral normalization changes that -- normalization
+fixes *spelling* disagreement, not *phrasing* disagreement.
+
+The real improvement is the two modes exact match cannot express at
+all:
+
+| mode                 | score (mean over 30) |
+|-----------------------|----------------------:|
+| baseline exact match  | 0/30                  |
+| vindex exact match    | 0/30                  |
+| vindex token F1       | 0.473                 |
+| vindex char similarity| 0.472                 |
+
+Both give partial-credit signal -- a paraphrased-but-correct answer
+scores well above zero, a wrong-entity answer scores near it -- exactly
+where a binary exact-match check goes silent. Run
+`python experiments/scripts/beat_the_baseline.py` for the full
+per-row breakdown.
+
+## Documented failures (Milestone 2.5)
+
+**Transliteration is many-to-many, and that is not fully solvable.**
+"tune" is a genuine ambiguity: it can mean the loanword "tune" (ट्यून)
+or the pronoun+postposition "tune" (तूने, "you [did]"), and these are
+unrelated words that happen to share a Roman spelling. This is not a
+gap in `indic_transliteration`'s coverage -- a Jio engineer confirmed
+directly that their own in-house transliteration layer does not fully
+resolve this class of ambiguity either. `vindex.transliterate` picks
+one deterministic rendering ("तुने") and does not attempt disambiguation
+by context; see `src/vindex/transliterate.py`'s module docstring.
+
+**Where vindex beats Sarvam's approach, for a narrow, real reason.**
+Sarvam's published work solves the loanword problem -- "वह doctor"
+versus "वह डॉक्टर" -- with an LLM call per case. `vindex.loanwords`
+(Milestone 2.5) solves the same class of case with a small, hand-picked
+lookup table (10 words) consulted before ITRANS's phonetic
+transliteration runs, so a known loanword gets its conventional
+spelling instead of a letter-by-letter guess ("doctor" would otherwise
+become "दोच्तोर्", not "डॉक्टर"). This is deterministic, free (no API
+call), and perfectly reproducible -- for exactly the fixed vocabulary
+in the table, and no further. It is a genuine advantage over an
+LLM-based normalizer for this narrow case, not a general claim that
+lookup beats LLM judging -- see `src/vindex/loanwords.py`'s module
+docstring for the table's own v0 limitations (10 words, Devanagari
+only, no inflections, a loanword outside the table falls straight
+through to ITRANS and is not fixed by this module at all).
+
 ## The vindex port is validated against this finding
 
 `scripts/validate_vindex_port.py` (Milestone 1.6) re-runs the 20%/100%
