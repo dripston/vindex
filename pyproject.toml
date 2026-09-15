@@ -15,7 +15,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Testing",
 ]
-dependencies = []
+dependencies = [
+    "indic_transliteration",
+]
 
 [project.optional-dependencies]
 dev = [
