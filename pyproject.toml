@@ -1,6 +1,6 @@
 [project]
 name = "vindex"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evaluation metrics for Indic and code-mixed LLM output."
 readme = "README.md"
 license = { text = "MIT" }
@@ -25,6 +25,9 @@ similarity = [
     "transformers",
     "torch",
     "numpy",
+]
+judge = [
+    "groq",
 ]
 dev = [
     "ruff",

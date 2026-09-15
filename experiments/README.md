@@ -208,6 +208,46 @@ Reproduce this table: `python experiments/scripts/discrimination.py`
 sentence-transformers, transformers, and torch --
 `pip install vindex[similarity]`).
 
+## Milestone 5: indic_judge does not repeat the समुद्र तल error -- confirmed, not assumed
+
+Phase 0 (`experiments/FINDINGS.md`) found `run_experiment.py`'s English
+rubric scoring a correct Hindi answer 0.0 -- asked to evaluate "समुद्र
+तल पर पानी 100 °C पर उबलता है" (water boils at 100 C at sea level,
+correct), the judge's own English-language reasoning silently
+mistranslated समुद्र तल ("sea level") as "sea floor" mid-thought, then
+marked the answer wrong for not accounting for undersea pressure.
+
+`src/vindex/judge_rubric.py`'s Hindi rubric instructs the judge to
+reason in Hindi when the content is in Hindi, specifically so there is
+no translation step for that error to hide inside -- and includes the
+समुद्र तल case itself as a worked few-shot example the judge must not
+repeat. This was tested against the exact same case, with a real Groq
+call (not a mock): the Hindi-rubric judge scores it 1.0, high
+confidence, and its own reasoning explicitly identifies समुद्र तल as
+"समुद्र सतह/समुद्र स्तर" (sea surface/sea level) -- see
+`tests/test_judge.py::test_indic_judge_does_not_mistranslate_samudra_tal`,
+which runs this exact regression check on every test run that has a
+`GROQ_API_KEY` available (skipped otherwise, including in CI, which has
+no key configured).
+
+Also tested for real, same case-by-case method: a genuinely wrong
+answer (भारत की राजधानी मुंबई है -- "Mumbai" for a question about
+India's capital) is still correctly flagged, confirming the Hindi
+rubric isn't simply biased toward passing everything; a Romanized-Hindi
+("Hinglish") question/answer pair passes without script penalty,
+confirming Milestone 5.2's script-aware prompting; and the align-then-
+judge exact-match shortcut (Milestone 5.4) measurably skips the LLM
+call entirely (0.0s) when `gold` matches `answer` exactly at the word
+level.
+
+**Milestone 5.8 (validate against human labels) is not done.** It
+needs a real annotation study -- human graders scoring the same cases
+this judge scores, per language, compared against an English-rubric
+baseline -- which has not been run. The above confirms the specific,
+documented Phase 0 failure doesn't recur; it is not a substitute for
+that study, and `indic_judge`'s docs say so explicitly rather than
+implying broader validation than exists.
+
 ## The vindex port is validated against this finding
 
 `scripts/validate_vindex_port.py` (Milestone 1.6) re-runs the 20%/100%

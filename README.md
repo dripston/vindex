@@ -55,6 +55,44 @@ means here and its own limits. Needs a gold reference, unlike
 transformers, transformers, torch -- not installed by plain
 `pip install vindex`).
 
+```bash
+pip install vindex[judge]
+export GROQ_API_KEY=...
+```
+
+```python
+from vindex import indic_judge
+
+result = indic_judge(
+    question="समुद्र तल पर पानी किस तापमान पर उबलता है?",
+    answer="समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है।",
+)
+
+print(result.label)                        # "matched"
+print(result.passed)                       # True
+print(result.detail["judge_reasoning"])    # judge's own Hindi reasoning
+```
+
+`indic_judge(question, answer, gold=None, judge=None, answering_model_id=None)`
+is an LLM judge -- the only non-deterministic metric in this package,
+because semantic correctness with no reference answer cannot be done
+any other way. Built for Indic, not an English judge pointed at Hindi:
+the rubric is written in Hindi (this project's own data found an
+English-reasoning judge silently mistranslating समुद्र तल as "sea
+floor" instead of "sea level" mid-thought, and scoring a correct
+answer 0.0 -- see `vindex/judge_rubric.py`), it states explicitly that
+Romanized Hindi is not an error, and it is reference-free by default
+because a gold reference measurably masks comprehension drift in this
+project's own data. Pass `gold=` for reference-based mode, which runs
+align-then-judge first (Sarvam's shape): an exact match with `gold`
+skips the LLM call entirely.
+
+Conservative by design: `passed` is only `True` at high judge-reported
+confidence and a high score -- an ambiguous case is `label="flagged"`,
+not a silent pass. Requires the `judge` extra (the `groq` SDK) and a
+`GROQ_API_KEY`. See the Limitations section for what this metric does
+not (yet) do.
+
 ## The finding this package is built around
 
 Same model, same 30 questions, one system-prompt change. The first
@@ -75,6 +113,20 @@ in `experiments/scripts/validate_vindex_port.py` -- run it yourself:
 ```bash
 python experiments/scripts/validate_vindex_port.py
 ```
+
+## Judge selection guidance
+
+Judge model choice is not a solved default -- see
+`vindex.judge.JUDGE_SELECTION_GUIDANCE` for the full text. Short
+version: `openai/gpt-oss-120b` (via Groq, the shipped default) is
+recommended specifically because it's the one model this project has
+direct evidence for (`experiments/FINDINGS.md`'s Phase 0 rubric-quality
+runs), not because it's assumed to generalize. This project's own
+calibration data and the HindiWiC finding both say Indic-language
+competence is not a simple function of overall model capability --
+don't assume a smaller/cheaper model "should be fine" for Indic judging
+without checking against your own data. And never use the same model
+(or family) as both judge and the model being judged.
 
 ## The argument for calibrated_similarity
 
@@ -125,13 +177,12 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   Documented in `vindex/script.py`; doesn't change classification output
   in practice, since real sentences have far more dominant-script
   characters than stray punctuation.
-- **No reference-based correctness check.** `script_adherence` verifies
-  script/language, not whether the answer is factually right.
-  `script_normalized_match` (transliteration-aware answer comparison) is
-  on the roadmap, not shipped yet. The pieces it will be built from
+- **`script_normalized_match` (a deterministic, transliteration-aware
+  answer comparison) is still not shipped as public API.** Its pieces
   (`vindex.normalize`, `vindex.match`, `vindex.transliterate`) exist
-  internally but are not yet public API -- see the two limitations below
-  for what they can and cannot do.
+  internally -- see the two limitations below for what they can and
+  cannot do. `indic_judge` (below) covers factual-correctness checking
+  in the meantime, but as an LLM judge, not a deterministic one.
 - **Transliteration is many-to-many; this is not fully solvable.**
   "tune" can mean the loanword "tune" (ट्यून) or the pronoun+postposition
   "tune" (तूने, "you [did]") -- genuinely different words that share a
@@ -168,3 +219,31 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   `vindex.calibration.MURIL_WARNING` for the HindiWiC citation this is
   based on. It is the encoder an Indian-language project reaches for
   first, and the one that fails hardest.
+- **`indic_judge` is not validated against human labels yet.** This is
+  the single biggest open gap in this package. The design (Hindi
+  rubric, reference-free default, conservative pass threshold) is
+  built directly from this project's own Phase 0 evidence, but "does
+  this judge agree with a human grader, per language, more than an
+  English-rubric judge does" is an unanswered question until that
+  annotation study is actually run. Don't present `indic_judge`'s
+  scores as validated against human judgment until then.
+- **`indic_judge` is non-deterministic in the sense that matters: it
+  calls a hosted LLM.** Temperature is fixed at 0 and the judge model
+  is version-pinned and recorded in every result's
+  `detail["judge_model_id"]`, but this project's own data showed the
+  same model rewording output roughly a third of the time even at
+  temperature 0 -- a "0.87" from one run and a "0.85" from a rerun on
+  the same input are both plausible, and neither is a bug. Compare
+  scores from the same `judge_model_id`, not across a model update.
+- **Never judge a model with itself, or a model from the same family.**
+  `indic_judge` does a partial, name-based same-family check when you
+  pass `answering_model_id` and warns in `detail`, but it cannot
+  detect this in general (e.g. a fine-tune with an unrelated-looking
+  name). Self-enhancement bias is documented, not theoretical --
+  verify your own judge/answering-model pairing.
+- **The align-then-judge cost optimization (Milestone 5.4) only
+  applies in reference-based mode.** Reference-free mode (the default)
+  has nothing to diff against by definition, so every reference-free
+  call is a real LLM call -- there is no free shortcut for the
+  recommended mode. This is inherent to reference-free judging, not a
+  missed optimization.
