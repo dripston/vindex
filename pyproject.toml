@@ -52,8 +52,12 @@ src = ["src", "tests"]
 # and is never linted as part of the package; .agents/.claude are unrelated
 # tooling directories, not project content; script_check.py at repo root is
 # Milestone 1's not-yet-ported engine -- BUILD_PLAN.md 1.1 says port it
-# unchanged, don't touch it in Milestone 0.
-extend-exclude = ["experiments", ".agents", ".claude", "script_check.py"]
+# unchanged, don't touch it in Milestone 0; docs/integrations/ deliberately
+# matches each third-party tool's own coding idiom (e.g. ragas_vindex.py
+# mirrors ragas's own t.Dict/t.Set style from ragas/metrics/_string.py) --
+# copy-paste fidelity to the target tool matters more than this repo's own
+# lint config there.
+extend-exclude = ["experiments", ".agents", ".claude", "script_check.py", "docs/integrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

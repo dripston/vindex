@@ -1,0 +1,32 @@
+# vindex as a promptfoo assertion (Milestone 4.1/4.2).
+#
+# Run: promptfoo eval -c promptfoo_vindex.yaml
+#
+# providers here is promptfoo_fixture_provider.py, a tiny deterministic
+# stand-in (not part of the vindex integration) that just echoes back
+# each test case's `canned_output` var -- so this example can show
+# vindex passing one response and failing another with no API key and
+# no network call. Point `providers` at your real model to test real
+# output; the `assert` block below is the actual integration and does
+# not change.
+
+prompts:
+  - "{{prompt}}"
+
+providers:
+  - id: file://./promptfoo_fixture_provider.py
+
+tests:
+  - vars:
+      prompt: "Mumbai kahan hai?"
+      canned_output: "Mumbai Maharashtra ki rajdhani hai."
+    assert:
+      - type: python
+        value: file://./promptfoo_vindex.py
+
+  - vars:
+      prompt: "Mumbai kahan hai?"
+      canned_output: "Mumbai is the capital of Maharashtra."
+    assert:
+      - type: python
+        value: file://./promptfoo_vindex.py
