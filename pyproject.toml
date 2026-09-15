@@ -58,5 +58,9 @@ strict = true
 packages = ["vindex"]
 mypy_path = "src"
 
+[[tool.mypy.overrides]]
+module = "indic_transliteration.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
