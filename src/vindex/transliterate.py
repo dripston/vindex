@@ -40,12 +40,26 @@ native-script "पानी" without an additional normalization step (e.g.
 stripping vowel-length distinctions before comparing). That
 normalization is not implemented here -- this module only wraps the
 backend, per 2.1's scope.
+
+LOANWORDS (Milestone 2.5): common English loanwords ("doctor",
+"hospital", ...) have one conventional Devanagari spelling that plain
+ITRANS does not produce -- "doctor" transliterates to "दोच्तोर्"
+phonetically, not the real spelling "डॉक्टर". When to_script is
+Devanagari, known loanwords (vindex.loanwords.LOANWORDS_DEVANAGARI) are
+substituted with their conventional spelling before the rest of the
+text is passed to ITRANS. This is a real, deterministic advantage over
+an LLM-based normalizer for exactly this narrow, fixed vocabulary --
+see loanwords.py's module docstring for the comparison to Sarvam's
+LLM-call approach to the same problem, and for this table's own v0
+limitations (10 words, Devanagari only, no inflections).
 """
 
 from __future__ import annotations
 
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate as _sanscript_transliterate
+
+from vindex.loanwords import substitute_known_loanwords
 
 DEVANAGARI = sanscript.DEVANAGARI
 KANNADA = sanscript.KANNADA
@@ -66,5 +80,7 @@ def transliterate(text: str, to_script: str) -> str:
     """
     if not text:
         return text
+    if to_script == DEVANAGARI:
+        text = substitute_known_loanwords(text)
     result: str = _sanscript_transliterate(text, sanscript.ITRANS, to_script)
     return result

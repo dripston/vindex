@@ -72,4 +72,25 @@ python experiments/scripts/validate_vindex_port.py
 - **No reference-based correctness check.** `script_adherence` verifies
   script/language, not whether the answer is factually right.
   `script_normalized_match` (transliteration-aware answer comparison) is
-  on the roadmap, not shipped yet.
+  on the roadmap, not shipped yet. The pieces it will be built from
+  (`vindex.normalize`, `vindex.match`, `vindex.transliterate`) exist
+  internally but are not yet public API -- see the two limitations below
+  for what they can and cannot do.
+- **Transliteration is many-to-many; this is not fully solvable.**
+  "tune" can mean the loanword "tune" (ट्यून) or the pronoun+postposition
+  "tune" (तूने, "you [did]") -- genuinely different words that share a
+  Roman spelling. This isn't a gap unique to this package: a Jio
+  engineer working on their own in-house transliteration layer confirmed
+  directly that it doesn't fully resolve this class of ambiguity either.
+  `vindex.transliterate` picks one deterministic rendering and does not
+  attempt disambiguation by context.
+- **Where this beats an LLM-based normalizer, for a specific, narrow
+  reason.** Sarvam's published work solves the loanword problem ("वह
+  doctor" vs "वह डॉक्टर") with an LLM call per case. `vindex.loanwords`
+  solves the same class of case with a small, hand-picked lookup table
+  (10 words) consulted before phonetic transliteration runs -- so a
+  known loanword gets its real spelling instead of a letter-by-letter
+  guess, deterministically, for free, reproducibly. This is a genuine
+  advantage for exactly that fixed vocabulary, not a general claim that
+  a lookup table beats LLM judging -- a loanword outside the table falls
+  straight through to phonetic transliteration, unfixed.
