@@ -68,10 +68,19 @@ questions, regenerated under the strict prompt). See
   comparison exists yet (Milestone 2); naive string equality fails
   completely across Devanagari/Latin/mixed answers.
 - **Similarity thresholds do not transfer across encoders.** At a
-  default 0.5 cosine-similarity cutoff, 13 of 15 encoder x language
-  configurations perform at chance accuracy for correct-vs-wrong
-  discrimination (`scripts/discrimination.py`,
-  `results_clean/discrimination_summary.csv`).
+  default 0.5 cosine-similarity cutoff, most encoder x language
+  configurations perform at or near chance accuracy for correct-vs-
+  wrong discrimination (`scripts/discrimination.py`,
+  `results_clean/discrimination_summary.csv`). The original estimate
+  here was "13 of 15" -- Milestone 3.1's exact count, computed
+  directly from the english_gold/full_sentence/hard-negative slice
+  used to build `vindex.calibration`'s shipped table, is **11 of 15
+  at exactly <=0.5 accuracy** (12 of 15 at <=0.55). Both numbers say
+  the same thing -- a 0.5 default is close to a coin flip on most
+  cells -- the exact count just depends on which slice of the 2x2x3
+  (gold_mode x gold_length x variant) grid you read it from. See the
+  Milestone 3 table below for the full picture, calibrated and
+  uncalibrated side by side.
 - **MuRIL cannot discriminate at all.** `google/muril-base-cased` scores
   ~0.99 similarity on nearly everything -- correct answers, wrong
   answers, different languages -- with std ~0.002. It is the encoder an
@@ -144,6 +153,60 @@ lookup beats LLM judging -- see `src/vindex/loanwords.py`'s module
 docstring for the table's own v0 limitations (10 words, Devanagari
 only, no inflections, a loanword outside the table falls straight
 through to ITRANS and is not fixed by this module at all).
+
+## Milestone 3: calibrated_similarity beats the 0.5 default -- the table
+
+`vindex.calibration.CALIBRATION_TABLE` ships thresholds derived from
+`results_clean/discrimination_summary.csv`, sliced at
+`gold_mode=english_gold, gold_length=full_sentence`, scored against
+hard-negative discrimination (correct vs. a different-entity wrong
+answer). **Each cell is calibrated from 10 cases** -- stated plainly,
+per Milestone 3.1, because this is a small-sample calibration, not a
+large validation study; see `src/vindex/calibration.py`'s module
+docstring for exactly why this slice was chosen over the other
+`gold_mode`/`gold_length` combinations in the same CSV, and use
+`vindex.calibrate()` (Milestone 3.3) to fit your own threshold on your
+own labelled data instead of trusting this table as ground truth.
+
+| encoder                          | language | accuracy @ 0.5 (uncalibrated) | calibrated threshold | accuracy @ threshold |
+|-----------------------------------|----------|-------------------------------:|----------------------:|-----------------------:|
+| all-MiniLM-L6-v2                  | en       | 0.500                          | 0.863                 | 0.650                  |
+| all-MiniLM-L6-v2                  | hi       | 0.526                          | 0.072                 | 0.632                  |
+| all-MiniLM-L6-v2                  | hinglish | 0.600                          | 0.351                 | 0.750                  |
+| LaBSE                             | en       | 0.500                          | 0.553                 | 0.500                  |
+| LaBSE                             | hi       | 0.474                          | 0.867                 | 0.526                  |
+| LaBSE                             | hinglish | 0.650                          | 0.423                 | 0.750                  |
+| multilingual-e5-base               | en       | 0.500                          | 0.878                 | **0.900**              |
+| multilingual-e5-base               | hi       | 0.474                          | 0.880                 | 0.632                  |
+| multilingual-e5-base               | hinglish | 0.500                          | 0.845                 | 0.750                  |
+| muril-base-cased                  | en       | 0.500                          | 0.996                 | 0.500                  |
+| muril-base-cased                  | hi       | 0.474                          | 0.995                 | 0.526                  |
+| muril-base-cased                  | hinglish | 0.500                          | 0.991                 | 0.600                  |
+| paraphrase-multilingual-mpnet-v2  | en       | 0.500                          | 0.818                 | **0.850**              |
+| paraphrase-multilingual-mpnet-v2  | hi       | 0.474                          | 0.871                 | 0.737                  |
+| paraphrase-multilingual-mpnet-v2  | hinglish | 0.700                          | 0.412                 | 0.800                  |
+
+Reading it straight: at the naive 0.5 default, 11 of these 15 cells
+score at or below 0.5 accuracy -- worse than useless as a threshold,
+since a coin flip also gets 0.5. Calibrated, 10 of 15 cells clear 0.6
+(all 3 MuRIL cells and both non-Hinglish LaBSE cells are the five that
+don't), and the best cell (multilingual-e5-base, English) reaches
+0.90. MuRIL
+never clears 0.6 even calibrated, for the reason `MURIL_WARNING`
+documents: it scores ~0.99 on nearly everything regardless of
+correctness, so there is no threshold that separates its correct
+answers from its wrong ones -- calibration cannot fix an encoder that
+does not encode the distinction in the first place. `paraphrase-
+multilingual-mpnet-base-v2` is the most consistently strong performer
+across all three languages, which is why `vindex.calibration.
+DEFAULT_ENCODER` picks it over the single-best-cell winner
+(multilingual-e5-base, which is excellent on English but weaker on
+Hindi and Hinglish).
+
+Reproduce this table: `python experiments/scripts/discrimination.py`
+(re-scores against the pinned `data/results_clean.json`; needs
+sentence-transformers, transformers, and torch --
+`pip install vindex[similarity]`).
 
 ## The vindex port is validated against this finding
 

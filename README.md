@@ -28,6 +28,33 @@ in the script and language the prompt used -- no reference answer
 needed. Labels: `matched`, `mixed`, `script_mismatch`,
 `language_mismatch`, `empty`.
 
+```bash
+pip install vindex[similarity]
+```
+
+```python
+from vindex import calibrated_similarity
+
+result = calibrated_similarity(
+    gold="The capital of Maharashtra is Mumbai.",
+    response="Mumbai is the capital of Maharashtra, the most populous state in India.",
+    language="en",
+)
+
+print(result.label)   # "similar"
+print(result.passed)  # True
+print(result.score)   # cosine similarity, e.g. 0.95
+```
+
+`calibrated_similarity(gold, response, language, encoder_name=...)`
+checks semantic closeness to a gold reference, using a threshold
+calibrated per (encoder, language) instead of an uncalibrated 0.5 --
+see the table below and the Limitations section for what "calibrated"
+means here and its own limits. Needs a gold reference, unlike
+`script_adherence`. Requires the `similarity` extra (sentence-
+transformers, transformers, torch -- not installed by plain
+`pip install vindex`).
+
 ## The finding this package is built around
 
 Same model, same 30 questions, one system-prompt change. The first
@@ -48,6 +75,35 @@ in `experiments/scripts/validate_vindex_port.py` -- run it yourself:
 ```bash
 python experiments/scripts/validate_vindex_port.py
 ```
+
+## The argument for calibrated_similarity
+
+At the naive default of 0.5 cosine similarity, 11 of 15 (encoder,
+language) combinations in this package's own calibration data score at
+or below 0.5 accuracy for correct-vs-wrong discrimination -- a coin
+flip does as well. Calibrated per (encoder, language), 10 of 15 clear
+0.6, and the best cell reaches 0.90.
+
+| encoder                          | language | accuracy @ 0.5 | calibrated | accuracy @ calibrated |
+|-----------------------------------|----------|----------------:|-----------:|------------------------:|
+| multilingual-e5-base               | en       | 0.500           | 0.878      | **0.900**               |
+| paraphrase-multilingual-mpnet-v2  | en       | 0.500           | 0.818      | 0.850                   |
+| paraphrase-multilingual-mpnet-v2  | hinglish | 0.700           | 0.412      | 0.800                   |
+| all-MiniLM-L6-v2                  | hinglish | 0.600           | 0.351      | 0.750                   |
+| LaBSE                             | hinglish | 0.650           | 0.423      | 0.750                   |
+| multilingual-e5-base               | hinglish | 0.500           | 0.845      | 0.750                   |
+| paraphrase-multilingual-mpnet-v2  | hi       | 0.474           | 0.871      | 0.737                   |
+| all-MiniLM-L6-v2                  | en       | 0.500           | 0.863      | 0.650                   |
+| all-MiniLM-L6-v2                  | hi       | 0.526           | 0.072      | 0.632                   |
+| multilingual-e5-base               | hi       | 0.474           | 0.880      | 0.632                   |
+| muril-base-cased                  | hinglish | 0.500           | 0.991      | 0.600                   |
+| LaBSE                             | en       | 0.500           | 0.553      | 0.500                   |
+| muril-base-cased                  | en       | 0.500           | 0.996      | 0.500                   |
+| LaBSE                             | hi       | 0.474           | 0.867      | 0.526                   |
+| muril-base-cased                  | hi       | 0.474           | 0.995      | 0.526                   |
+
+Full methodology, the "13 of 15" vs "11 of 15" note, and how to
+reproduce this table: `experiments/README.md`'s Milestone 3 section.
 
 ## Limitations
 
@@ -94,3 +150,21 @@ python experiments/scripts/validate_vindex_port.py
   advantage for exactly that fixed vocabulary, not a general claim that
   a lookup table beats LLM judging -- a loanword outside the table falls
   straight through to phonetic transliteration, unfixed.
+- **`calibrated_similarity`'s table is calibrated from 10 cases per
+  cell.** Small-sample, from one dataset, one point in time -- a
+  starting point, not ground truth. Use `vindex.calibrate()` to fit a
+  threshold on your own labelled data. Only 3 languages (en, hi,
+  hinglish) and 5 encoders are covered; any other combination falls
+  back to an uncalibrated 0.5 threshold and says so plainly in the
+  result's `reason` and `detail["calibrated"]`.
+- **`calibrated_similarity` measures closeness, not correctness.** Two
+  answers can be topically similar and still disagree on the actual
+  fact -- this metric will not catch that. It also requires a gold
+  reference, unlike `script_adherence`.
+- **MuRIL cannot be calibrated into working.** It scores ~0.99 on
+  nearly everything regardless of correctness (std ~0.002), so no
+  threshold separates its correct answers from its wrong ones.
+  Passing it to `calibrated_similarity` raises loudly by default; see
+  `vindex.calibration.MURIL_WARNING` for the HindiWiC citation this is
+  based on. It is the encoder an Indian-language project reaches for
+  first, and the one that fails hardest.

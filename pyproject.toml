@@ -20,6 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+similarity = [
+    "sentence-transformers",
+    "transformers",
+    "torch",
+    "numpy",
+]
 dev = [
     "ruff",
     "mypy",
