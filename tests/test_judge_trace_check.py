@@ -1,11 +1,13 @@
 """
 Tests for vindex.judge_trace_check (Milestone 6). check_trace() (6.1)
-is pure, deterministic, offline logic -- tested with injected TrapWord
-fixtures (the समुद्र तल and उत्तर cases from this project's own
-documented findings), not real dictionary content (which is currently
-empty -- see test_trap_words.py). check_trace_llm_fallback() (6.4)
-needs a real Groq call; skipped if GROQ_API_KEY isn't set, matching
-test_judge.py's convention.
+is pure, deterministic, offline logic -- tested mostly with injected
+TrapWord fixtures (the समुद्र तल and उत्तर cases from this project's
+own documented findings) so the logic tests don't depend on the real
+dictionary's exact size or content, plus a handful of tests against
+the real, now-filled-in dictionary (see test_trap_words.py) to confirm
+the loader and checker actually agree on real data.
+check_trace_llm_fallback() (6.4) needs a real Groq call; skipped if
+GROQ_API_KEY isn't set, matching test_judge.py's convention.
 """
 
 from __future__ import annotations
@@ -116,6 +118,40 @@ def test_check_trace_is_deterministic() -> None:
     assert r1.score == r2.score
 
 
+def test_check_trace_matches_reading_with_parenthetical_gloss_stripped() -> None:
+    # Regression: dictionary readings can carry a clarifying gloss in
+    # parens (e.g. "ocean floor (seabed)") for a human filling in the
+    # CSV, but a real judge trace usually only uses the primary term.
+    # A trace saying "ocean floor" must still match a reading_b of
+    # "ocean floor (seabed)" -- this broke on the first real filled-in
+    # dictionary data until _primary_gloss() was added.
+    word = TrapWord(
+        term="समुद्र तल", reading_a="sea level", reading_b="ocean floor (seabed)", source="own"
+    )
+    source = "समुद्र तल पर पानी किस तापमान पर उबलता है?"
+    trace = "The question asks about the ocean floor, so pressure matters."
+    r = check_trace(source, trace, trap_words=[word])
+    assert r.label == "misread_detected"
+
+
+# --- check_trace: against the real, filled-in dictionary (not injected) ---
+
+
+def test_check_trace_real_dictionary_catches_samudra_tal() -> None:
+    source = "समुद्र तल पर पानी किस तापमान पर उबलता है?"
+    trace = "The judge mistranslated this as sea floor, so the boiling point is above 100 C."
+    r = check_trace(source, trace)  # uses the real, loaded dictionary
+    assert r.label == "misread_detected"
+    assert r.detail["dictionary_size"] == 70
+
+
+def test_check_trace_real_dictionary_catches_uttar() -> None:
+    source = "दिल्ली से उत्तर की ओर कौन सा राज्य है?"
+    trace = "The question is asking for an answer, so I need to provide a response."
+    r = check_trace(source, trace)
+    assert r.label == "misread_detected"
+
+
 # --- check_trace_llm_fallback (Milestone 6.4): needs a real Groq call ---
 
 pytest.importorskip("groq")
@@ -148,11 +184,15 @@ def test_llm_fallback_dictionary_hit_skips_llm_call() -> None:
 
 def test_llm_fallback_catches_mistranslation_outside_dictionary() -> None:
     judge = GroqJudge()
-    # "kal" (कल) is tense-ambiguous (yesterday/tomorrow) -- not a fixed
-    # word-pair a dictionary entry can represent, exactly the category
-    # 6.4 exists for.
-    source = "कल मैं बाजार जाऊंगा।"
-    trace = "The source says the speaker went to the market yesterday."
+    # Negation-scope drop -- structurally not a fixed word-pair a
+    # dictionary entry can represent (the error isn't "word X misread
+    # as word Y", it's the negation disappearing entirely), exactly
+    # the category 6.4 exists for. कल (yesterday/tomorrow) was used
+    # for this test originally, but is itself now in the real
+    # dictionary (own_additions.csv), so it's a dictionary hit, not an
+    # LLM-fallback case -- see test_check_trace_real_dictionary_* above.
+    source = "मुझे नहीं लगता कि यह सही जवाब है।"  # "I don't think this is the right answer"
+    trace = "The source confirms this is the right answer."  # drops the negation
     r = check_trace_llm_fallback(source, trace, judge)
     assert r.passed is False
     assert r.detail["llm_fallback_used"] is True

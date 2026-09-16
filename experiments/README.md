@@ -248,43 +248,62 @@ documented Phase 0 failure doesn't recur; it is not a substitute for
 that study, and `indic_judge`'s docs say so explicitly rather than
 implying broader validation than exists.
 
-## Milestone 6: judge_trace_check catches the same-family error class it was built for -- but the dictionary is still empty
+## Milestone 6: judge_trace_check catches the error class it was built for, with a real 70-entry dictionary
 
 `src/vindex/judge_trace_check.py`'s `check_trace()` is the mechanism
 Minakshi named as the worrying one: the समुद्र तल error happens inside
 a judge's reasoning before any output exists, so nothing downstream
 (script_adherence, a transliteration layer, WER) can catch it. Tested
-with the exact समुद्र तल case (injected as a `TrapWord` fixture, since
-the shipped dictionary is currently empty -- see below): a trace that
-substitutes "sea floor" for "sea level" is correctly flagged; a trace
-that reads it correctly passes; a trace that mentions both readings
-while correctly reasoning through the ambiguity is correctly NOT
-flagged (a judge working through an ambiguity is not the same as a
-judge misreading one). The उत्तर ("north" vs "answer") case from
-BUILD_PLAN.md 6.1 was also tested and correctly caught. See
-`tests/test_judge_trace_check.py`.
+against the real dictionary (not an injected fixture): the exact
+समुद्र तल case is correctly flagged when a trace substitutes "sea
+floor" for "sea level"; a trace that reads it correctly passes; a
+trace that mentions both readings while correctly reasoning through
+the ambiguity is correctly NOT flagged (a judge working through an
+ambiguity is not the same as a judge misreading one). The उत्तर
+("north" vs "answer") case from BUILD_PLAN.md 6.1 was also tested and
+correctly caught. See `tests/test_judge_trace_check.py` and
+`tests/test_trap_words.py`.
 
-**The shipped dictionary (`data/trap_words/`) has 0 usable entries as
-of this writing.** Both `hindiwic_inventory.csv` (60 HindiWiC words)
-and `own_additions.csv` (15 hand-authored terms) ship with
-`suggested_reading_a`/`suggested_reading_b` blank -- BUILD_PLAN.md 6.1
-is explicit that filling these in is the project owner's own work, not
-something to automate ("about an hour, and it's your work, not your
-agent's"). `check_trace()` correctly reports `dictionary_size: 0` and
-passes everything when called with the real (currently empty)
-dictionary -- this is the honest behavior the module is designed to
-have, not a placeholder to silently work around.
+**The shipped dictionary (`data/trap_words/`) has 70 usable entries.**
+60 HindiWiC words plus 15 hand-authored terms (misleading compounds,
+tense-flip time adverbs, fractional numbers, Indian large-number
+words), with `suggested_reading_a`/`suggested_reading_b` filled in by
+hand -- per BUILD_PLAN.md 6.1's instruction that this is the project
+owner's own work, not something to automate ("about an hour, and it's
+your work, not your agent's"). In practice: drafted with help from a
+Hindi-fluent LLM (Sarvam's chatbot, fed the real inventory CSV) for
+speed, then reviewed before committing -- disclosed here, not silently
+presented as unassisted manual work. 5 of the 60 HindiWiC words (तेल,
+धन, डब्बा, संबंध, थान) were marked "no good trap" and left blank on
+purpose; their secondary senses aren't realistically confusable enough
+to be worth a forced pair.
 
-**Milestone 6.4 (optional LLM fallback)** was tested for real: कल
-("kal" -- tense-ambiguous, "yesterday" or "tomorrow" depending on
-grammatical context elsewhere in the sentence, not a fixed word-pair a
-dictionary entry can represent) is exactly the category the dictionary
-structurally cannot catch. `check_trace_llm_fallback()` correctly
-caught a mistranslation of it via a real Groq call, using
-align-then-judge (Sarvam's shape) to send only the mismatched segment,
-not the full text. The exact-alignment shortcut (no LLM call when
-trace and source already match) was also confirmed: 0.001s, no call
-made.
+**One real bug found and fixed during this fill-in.** The first draft
+used "ocean floor (seabed)" for समुद्र तल's reading_b -- a real
+synonym of the actual Phase 0 wording ("sea floor"), but
+`check_trace`'s substring-match logic required the literal reading
+text, so "ocean floor" in a trace matched while the historically-exact
+"sea floor" did not, and vice versa. Root-caused to
+`_trace_says_wrong_reading`'s design: dictionary readings can carry a
+parenthetical clarifying gloss (e.g. "ocean floor (seabed)") meant for
+a human filling in the CSV, but a real trace only uses the primary
+term. Fixed with `_primary_gloss()`, which strips the parenthetical
+before matching -- and separately, समुद्र तल's reading_b was corrected
+to "sea floor" to match the actual documented case exactly, since
+that's the wording with real evidence behind it. See
+`test_check_trace_matches_reading_with_parenthetical_gloss_stripped`.
+
+**Milestone 6.4 (optional LLM fallback)** was tested for real, using a
+negation-scope drop (a trace that drops a "not" entirely) -- once कल
+("kal", tense-ambiguous "yesterday"/"tomorrow") became a real
+dictionary entry, it stopped being a valid fallback test case (it's
+now a dictionary hit, which is strictly better: free and instant
+instead of an LLM call). The negation case is genuinely outside any
+fixed word-pair dictionary's reach, and `check_trace_llm_fallback()`
+correctly caught it via a real Groq call, using align-then-judge
+(Sarvam's shape) to send only the mismatched segment, not the full
+text. The exact-alignment shortcut (no LLM call when trace and source
+already match) was also confirmed: 0.001s, no call made.
 
 **Milestone 6.3 (validate with ~60 traces) has not been run.** It
 requires human labor this project's own bias protocol makes explicit:

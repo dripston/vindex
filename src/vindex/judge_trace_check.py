@@ -78,16 +78,28 @@ from vindex.result import MetricResult
 from vindex.trap_words import TrapWord, load_trap_words
 
 
+def _primary_gloss(reading: str) -> str:
+    """Strip a trailing parenthetical clarification, e.g. "ocean floor
+    (seabed)" -> "ocean floor". Dictionary readings often carry a
+    clarifying gloss in parens for a human filling in the CSV, but a
+    real judge trace will typically only use the primary term -- match
+    on that, not the full annotated string."""
+    paren = reading.find("(")
+    primary = reading[:paren] if paren != -1 else reading
+    return primary.strip()
+
+
 def _trace_says_wrong_reading(trace: str, word: TrapWord) -> bool:
     """True if `trace` mentions the wrong reading (reading_b) without
     also mentioning the correct one (reading_a) -- case-insensitive,
-    substring match on the English reading text. A trace that mentions
-    BOTH readings (e.g. quoting the term while explaining why one
-    reading is wrong) is not flagged: that is a judge correctly
-    reasoning about the ambiguity, not misreading it."""
+    substring match on each reading's primary gloss (the part before
+    any parenthetical clarification -- see _primary_gloss). A trace
+    that mentions BOTH readings (e.g. quoting the term while
+    explaining why one reading is wrong) is not flagged: that is a
+    judge correctly reasoning about the ambiguity, not misreading it."""
     trace_lower = trace.lower()
-    says_b = word.reading_b.lower() in trace_lower
-    says_a = word.reading_a.lower() in trace_lower
+    says_b = _primary_gloss(word.reading_b).lower() in trace_lower
+    says_a = _primary_gloss(word.reading_a).lower() in trace_lower
     return says_b and not says_a
 
 
