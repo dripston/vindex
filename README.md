@@ -250,14 +250,13 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   `vindex.calibration.MURIL_WARNING` for the HindiWiC citation this is
   based on. It is the encoder an Indian-language project reaches for
   first, and the one that fails hardest.
-- **`indic_judge` is not validated against human labels yet.** This is
-  the single biggest open gap in this package. The design (Hindi
-  rubric, reference-free default, conservative pass threshold) is
-  built directly from this project's own Phase 0 evidence, but "does
-  this judge agree with a human grader, per language, more than an
-  English-rubric judge does" is an unanswered question until that
-  annotation study is actually run. Don't present `indic_judge`'s
-  scores as validated against human judgment until then.
+- **`indic_judge` vs an English-rubric baseline is still open.** The
+  Milestone 6.3 study below validates `indic_judge`'s verdict against
+  human graders in isolation (90.3% agreement); it does not yet compare
+  that number against an English-rubric judge on the same 62 traces, so
+  the specific claim "the Hindi rubric agrees with humans more than an
+  English one would" is not yet measured, only motivated by the Phase 0
+  qualitative finding (see `experiments/FINDINGS.md`).
 - **`indic_judge` is non-deterministic in the sense that matters: it
   calls a hosted LLM.** Temperature is fixed at 0 and the judge model
   is version-pinned and recorded in every result's
