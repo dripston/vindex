@@ -11,24 +11,27 @@ even when it's inconvenient.
 
 ## Step 0 — Before any grading starts
 
-- [ ] `data/trace_study_traces.json` has been generated
+- [x] `data/trace_study_traces.json` has been generated
       (`experiments/scripts/generate_trace_study_data.py`) and is
       treated as PINNED from this point forward -- do not regenerate
       it once grading begins, even if you notice something you'd want
       to fix in the source questions. Fix it for a v2 dataset later;
-      this run is frozen.
-- [ ] This rubric (below, "Grading rubric") is frozen as of the commit
-      that adds this file. If the rubric changes after grading starts,
-      **the entire study restarts from Step 1** -- every grade already
-      assigned is discarded, not adjusted. This is expensive on
-      purpose: it removes any incentive to tweak the rubric mid-grade
-      to match a result you're hoping for.
-- [ ] `data/trace_study_grading_sheet.csv` (the blinded sheet) has
+      this run is frozen. (62 traces, generated and committed at
+      `11fd38b`.)
+- [x] This rubric (below, "Grading rubric") is frozen as of the commit
+      that adds this file (`11fd38b`). If the rubric changes after
+      grading starts, **the entire study restarts from Step 1** --
+      every grade already assigned is discarded, not adjusted. This is
+      expensive on purpose: it removes any incentive to tweak the
+      rubric mid-grade to match a result you're hoping for.
+- [x] `data/trace_study_grading_sheet.csv` (the blinded sheet) has
       been generated and contains ONLY: trace_id, question, answer,
       judge_reasoning, plus two empty columns for your verdict and
-      notes. It must NOT contain: answer_type (correct/wrong ground
-      truth), judge_score, judge_passed, judge_label, or trap_word.
-      Confirm this before sending the sheet to the second grader.
+      notes. It does NOT contain: answer_type (correct/wrong ground
+      truth), judge_score, judge_passed, judge_label, or trap_word --
+      verified by inspection before committing. Confirm this again
+      before sending the sheet to the second grader (re-check the
+      column headers yourself; don't just trust this note).
 
 ## Step 1 — Commit ground truth BEFORE grading
 
@@ -38,7 +41,7 @@ even when it's inconvenient.
       sheet. This is the commit that makes it impossible to quietly
       adjust the ground-truth labels after seeing how grading goes --
       the git history is the record.
-- [ ] Note the commit hash here once made: `____________________`
+- [x] Note the commit hash here once made: `11fd38b`
 
 ## Step 2 — Split into holdout
 
@@ -47,8 +50,12 @@ even when it's inconvenient.
       roughly 18-19 traces) that NEITHER grader looks at, discusses,
       or uses to adjust their judgment, until both full sets of grades
       are already submitted.
-- [ ] Record which trace_ids are in the holdout here, before grading
-      starts: `____________________`
+- [x] Record which trace_ids are in the holdout here, before grading
+      starts: `T001,T002,T003,T006,T007,T008,T016,T023,T029,T038,T043,T045,T046,T047,T049,T050,T052,T057,T062`
+      (19 of 62 = 30.6%, selected via `random.seed(1234)` over the
+      sorted trace_id list -- not hand-picked, so the choice of which
+      traces are held out cannot itself be influenced by which ones
+      look "safe" or "risky.")
 - [ ] The holdout exists to catch a specific failure mode: grading the
       first 70% teaches you the judge's patterns, and you
       (consciously or not) start grading the last 30% differently
