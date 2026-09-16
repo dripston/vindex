@@ -66,7 +66,6 @@ extend-exclude = ["experiments", ".agents", ".claude", "script_check.py", "docs/
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.10"
 strict = true
 packages = ["vindex"]
 mypy_path = "src"
