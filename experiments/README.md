@@ -305,20 +305,40 @@ correctly caught it via a real Groq call, using align-then-judge
 text. The exact-alignment shortcut (no LLM call when trace and source
 already match) was also confirmed: 0.001s, no call made.
 
-**Milestone 6.3 (validate with ~60 traces) has not been run.** It
-requires human labor this project's own bias protocol makes explicit:
-generate ~30 trap-seeded questions, get model answers from a pinned
-run, capture full judge reasoning traces reference-free, then two
-people -- the project owner and one other fluent Hindi speaker,
-independently, on a blinded sheet, against a rubric frozen before
-grading starts, with 30% held out and never looked at while tuning --
-grade all 60 and their agreement is computed. None of that has
-happened. **Milestone 6.5 (publish the precision/recall number) is
-correspondingly not done either** -- there is no number to publish
-yet, honest or otherwise, and this project's own principle (a 60%
-catch rate at 15% false positives, honestly reported, beats a vague
-claim of working well) cuts the other way just as hard against
-publishing a number that was never actually measured.
+**Milestone 6.3 (validate with ~60 traces) has been run.** 31
+trap-seeded questions (correct + wrong answer each = 62 traces) were
+generated (`experiments/scripts/generate_trace_study_data.py`), judged
+reference-free with `indic_judge`, and the ground truth was committed
+to git (`11fd38b`) before either grader opened the blinded sheet. Two
+people -- the project owner and one other fluent Hindi speaker --
+graded all 62 independently, on a blinded sheet (no ground truth, no
+judge verdict, no trap word visible), against a rubric frozen before
+grading started, with a 19-trace (30.6%) holdout selected by a
+documented random seed and never looked at while tuning. Full protocol
+and checklist: `docs/annotation/BIAS_PROTOCOL.md`.
+
+**Milestone 6.5 (publish the number): 90.3% agreement (56/62) between
+the two human graders and `indic_judge`'s own verdict.** Inter-annotator
+agreement (the two humans against each other) was 100%. Split by set:
+88.4% (38/43) on the tuning set, 94.7% (18/19) on the untouched
+holdout -- no meaningful gap, no sign the graders drifted as they
+learned the judge's patterns. Every disagreement was on a trace the
+judge itself flags conservatively (a correct answer marked "flagged"
+over an edge-case nuance unrelated to the core mistranslation the
+metric targets, e.g. कमान, डाक, गुरु, हार, निकासी, लाख from the earlier
+findings above) -- not a missed mistranslation, which is the failure
+mode this metric exists to avoid.
+
+**Required disclosure (BIAS_PROTOCOL.md Step 5):** one of the two
+graders is the project owner, who also built `indic_judge` and
+`check_trace` -- the metric being evaluated. That is a real conflict
+of interest. The mitigations are the bias protocol itself (ground
+truth committed before grading, blinded sheet, frozen rubric,
+documented-random holdout) plus the second grader: an independent
+fluent Hindi speaker with no stake in the project's result, grading
+from the same blinded sheet with no discussion until both submitted.
+The 90.3% figure should not be cited without this paragraph, or an
+equivalent, next to it.
 
 ## The vindex port is validated against this finding
 

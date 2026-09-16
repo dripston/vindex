@@ -301,11 +301,21 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   idiom translated literally), needs `check_trace_llm_fallback`
   instead -- and even that is scoped to the segments that don't align,
   not a general mistranslation detector.
-- **`check_trace`'s precision and recall have not been measured.**
-  Needs a real ~60-trace human-agreement study with a strict bias
-  protocol (labels committed before the metric is written, a blind
-  sheet, no cross-visibility between two independent annotators, a
-  frozen rubric, a 30% holdout, disclosed self-annotation) that has
-  not been run yet. Don't present `check_trace` as validated at any
-  particular precision/recall until that study exists and its number
-  -- whatever it is -- is published alongside it.
+- **`check_trace`/`indic_judge` human-agreement study (Milestone 6.3):
+  62 traces (31 trap words x correct/wrong answer), graded
+  independently by two fluent Hindi speakers under a bias protocol
+  (`docs/annotation/BIAS_PROTOCOL.md`: ground truth committed before
+  grading, blind sheet, frozen rubric, 30% holdout, no cross-visibility
+  until both submitted). Result: **90.3% agreement (56/62) between
+  human graders and `indic_judge`'s own verdict**, 100% inter-annotator
+  agreement between the two humans, no meaningful gap between the
+  tuning set (88.4%) and the untouched 30% holdout (94.7%) -- no sign
+  of grading drift. Disclosure required by the protocol: one of the
+  two graders is the project owner, who also built the metric being
+  evaluated; the second grader is an independent fluent Hindi speaker
+  with no stake in the result. Do not cite the 90.3% figure without
+  this disclosure next to it. All disagreement was on the same small
+  set of traces the judge itself flags as conservative-by-design (a
+  correct answer marked "flagged" over an edge-case nuance, not a
+  missed mistranslation) -- see `docs/annotation/BIAS_PROTOCOL.md` for
+  the full breakdown and raw numbers.
