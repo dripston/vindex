@@ -1,0 +1,216 @@
+WORD: उत्तर
+CORRECT_MEANING: north
+WRONG_MEANING: answer
+QUESTION: भारत के उत्तर में कौन सा देश है — नेपाल या श्रीलंका?
+CORRECT_ANSWER: भारत के उत्तर में नेपाल स्थित है; श्रीलंका दक्षिण में है।
+WRONG_ANSWER: इसका उत्तर यह है कि नेपाल और श्रीलंका दोनों भारत के पड़ोसी देश हैं।
+
+WORD: समुद्र तल
+CORRECT_MEANING: sea level
+WRONG_MEANING: sea floor
+QUESTION: माउंट एवरेस्ट की ऊँचाई समुद्र तल से कितनी मापी जाती है?
+CORRECT_ANSWER: समुद्र तल से एवरेस्ट की ऊँचाई लगभग 8,849 मीटर मापी जाती है।
+WRONG_ANSWER: एवरेस्ट समुद्र की तली पर नहीं है, वह थल पर है, इसलिए उसकी ऊँचाई समुद्र की तली से नहीं नापी जाती।
+
+WORD: मूल
+CORRECT_MEANING: root
+WRONG_MEANING: principal (capital sum)
+QUESTION: पेड़ की मूल जमीन के नीचे क्या काम करती है?
+CORRECT_ANSWER: पेड़ की मूल मिट्टी से पानी और खनिज लवण लेकर पेड़ तक पहुँचाती है और पेड़ को थामे रखती है।
+WRONG_ANSWER: मूल यानी मूल राशि — वह जमीन में काम नहीं करती, बैंक में रहती है और ब्याज देती है।
+
+WORD: विधि
+CORRECT_MEANING: method
+WRONG_MEANING: law (statute)
+QUESTION: चाय बनाने की सबसे आसान विधि क्या है?
+CORRECT_ANSWER: सबसे आसान विधि यह है कि पानी उबालकर उसमें चाय पत्ती और चीनी डालकर दो मिनट पकाएँ।
+WRONG_ANSWER: चाय बनाने के लिए कोई कानून नहीं है, आप अपनी मर्ज़ी से चाय बना सकते हैं।
+
+WORD: धारा
+CORRECT_MEANING: stream (current of water)
+WRONG_MEANING: clause (legal section)
+QUESTION: गर्मियों में पहाड़ी धारा सूख क्यों जाती है?
+CORRECT_ANSWER: गर्मियों में बरसात न होने से पानी का स्रोत सूख जाता है, इसलिए धारा सूख जाती है।
+WRONG_ANSWER: धारा तो कानून की किताब में होती है, वह गर्मी से नहीं सूखती।
+
+WORD: कमान
+CORRECT_MEANING: bow (weapon)
+WRONG_MEANING: command (authority)
+QUESTION: तीर को दूर तक भेजने के लिए कमान का तार कैसा होना चाहिए?
+CORRECT_ANSWER: कमान का तार कसा हुआ और लचीला होना चाहिए ताकि तीर पर ज़ोर से धकेला जा सके।
+WRONG_ANSWER: कमान यानी सेना का नेतृत्व — उसमें कोई तार नहीं होता, तार तो सितार में होते हैं।
+
+WORD: टीका
+CORRECT_MEANING: commentary (on a text)
+WRONG_MEANING: vaccine (injection)
+QUESTION: गीता पर सबसे प्रसिद्ध टीका किसने लिखी है?
+CORRECT_ANSWER: गीता पर अनेक टीकाएँ लिखी गई हैं, जिनमें आदि शंकराचार्य की टीका सबसे प्रसिद्ध मानी जाती है।
+WRONG_ANSWER: गीता पर टीका नहीं लगता; टीका तो चेचक और पोलियो जैसी बीमारियों से बचाव के लिए लगाया जाता है।
+
+WORD: अंश
+CORRECT_MEANING: part (share)
+WRONG_MEANING: degree (temperature)
+QUESTION: पिता की संपत्ति में बेटी को कितना अंश मिलता है?
+CORRECT_ANSWER: हिंदू उत्तराधिकार कानून के अनुसार अब बेटी को बेटे के बराबर अंश मिलता है।
+WRONG_ANSWER: अंश तो तापमान नापने की इकाई है, संपत्ति अंश में नहीं बँटती।
+
+WORD: कुंभ
+CORRECT_MEANING: pitcher (water pot)
+WRONG_MEANING: Aquarius (zodiac sign)
+QUESTION: गर्मी में मिट्टी के कुंभ का पानी ठंडा क्यों रहता है?
+CORRECT_ANSWER: मिट्टी के छोटे-छोटे छिद्रों से पानी की हल्की भाप बनती रहती है, जिससे कुंभ का पानी ठंडा रहता है।
+WRONG_ANSWER: कुंभ तो राशिचक्र की एक राशि है, उसमें पानी भरा ही नहीं जा सकता।
+
+WORD: संक्रमण
+CORRECT_MEANING: infection
+WRONG_MEANING: transition
+QUESTION: कोरोना का संक्रमण एक व्यक्ति से दूसरे व्यक्ति को कैसे फैलता है?
+CORRECT_ANSWER: कोरोना का संक्रमण छींक या खाँसी की बूंदों के संपर्क से फैलता है।
+WRONG_ANSWER: संक्रमण यानी एक अवस्था से दूसरी अवस्था में बदलाव — यह व्यक्ति से व्यक्ति नहीं फैलता।
+
+WORD: हल
+CORRECT_MEANING: solution
+WRONG_MEANING: plough
+QUESTION: मुश्किल गणित के सवाल का हल निकालने का आसान तरीका क्या है?
+CORRECT_ANSWER: सवाल को छोटे-छोटे हिस्सों में तोड़कर धीरे-धीरे हल करना सबसे आसान तरीका है।
+WRONG_ANSWER: हल तो खेत जोतने का औज़ार है, उससे गणित के सवाल हल नहीं होते।
+
+WORD: डाक
+CORRECT_MEANING: post (mail)
+WRONG_MEANING: prey (quarry of a hunt)
+QUESTION: रजिस्टर्ड डाक भेजने के लिए डाकघर में क्या जमा करना होता है?
+CORRECT_ANSWER: डाकघर में बंद लिफ़ाफ़ा और रजिस्ट्री का शुल्क जमा करना होता है।
+WRONG_ANSWER: डाक तो शिकारी पशु का शिकार होता है, उसे डाकघर में नहीं भेजा जाता।
+
+WORD: गुरु
+CORRECT_MEANING: teacher (mentor)
+WRONG_MEANING: heavy (weighty)
+QUESTION: गुरु दक्षिणा देने का क्या महत्व है?
+CORRECT_ANSWER: गुरु दक्षिणा शिष्य द्वारा अपने गुरु के ज्ञान के प्रति आभार व्यक्त करने का परंपरागत तरीका है।
+WRONG_ANSWER: गुरु तो भारी वस्तु को कहते हैं, भारी चीज़ की दक्षिणा कौन देता है।
+
+WORD: दाद
+CORRECT_MEANING: praise (applause)
+WRONG_MEANING: ringworm (skin disease)
+QUESTION: मंच पर नृत्य देखकर दर्शकों ने दाद क्यों दी?
+CORRECT_ANSWER: नृत्य इतना सुंदर था कि दर्शक झूम उठे और तालियों की दाद देने लगे।
+WRONG_ANSWER: दाद तो त्वचा की खुजली वाली बीमारी है, नृत्य देखने से दर्शकों को दाद नहीं होती।
+
+WORD: बाल
+CORRECT_MEANING: hair
+WRONG_MEANING: child
+QUESTION: गर्म तेल से बाल मालिश करने का क्या फ़ायदा है?
+CORRECT_ANSWER: तेल की मालिश बालों की जड़ों को पोषण देती है और बाल मुलायम-चमकदार बनते हैं।
+WRONG_ANSWER: बाल यानी बच्चे की तेल मालिश से उसकी नींद अच्छी होती है, इसका बालों से कोई लेना-देना नहीं है।
+
+WORD: फल
+CORRECT_MEANING: fruit
+WRONG_MEANING: result (outcome)
+QUESTION: रोज़ कौन सा फल खाना सेहत के लिए सबसे अच्छा माना जाता है?
+CORRECT_ANSWER: रोज़ एक सेब खाना सेहत के लिए बहुत अच्छा माना जाता है।
+WRONG_ANSWER: फल तो मेहनत का परिणाम होता है, उसे खाया नहीं जा सकता।
+
+WORD: चारा
+CORRECT_MEANING: fodder
+WRONG_MEANING: bait (lure)
+QUESTION: गाय-भैंस के लिए हरा चारा किस फसल से तैयार किया जाता है?
+CORRECT_ANSWER: हरे चारे के लिए मुख्य रूप से बरसीम और मक्के की फसल का इस्तेमाल किया जाता है।
+WRONG_ANSWER: चारा तो मछली पकड़ने के काँटे पर लगाया जाता है, गाय उसे नहीं खाती।
+
+WORD: गुना
+CORRECT_MEANING: times (x, as in do guna)
+WRONG_MEANING: virtue (quality, confusion with gun)
+QUESTION: अगर 50 रुपये दो गुना हो जाएँ तो कितने होंगे?
+CORRECT_ANSWER: 50 का दो गुना 100 रुपये होंगे।
+WRONG_ANSWER: दो गुना यानी दो गुण — रुपयों में गुण नहीं गिने जाते।
+
+WORD: हार
+CORRECT_MEANING: necklace
+WRONG_MEANING: defeat
+QUESTION: शादी में दुल्हन के गले में हार पहनाने की परंपरा क्यों है?
+CORRECT_ANSWER: हार दुल्हन का मुख्य आभूषण होता है, जो उसकी शोभा बढ़ाता है।
+WRONG_ANSWER: हार यानी असफलता — शादी पर किसी को हार नहीं पहनाई जाती, यह प्रश्न गलत है।
+
+WORD: सोना
+CORRECT_MEANING: gold
+WRONG_MEANING: to sleep
+QUESTION: 22 कैरेट और 24 कैरेट के सोने में क्या फ़र्क है?
+CORRECT_ANSWER: 24 कैरेट शुद्ध सोना है, जबकि 22 कैरेट में थोड़ी मात्रा में दूसरी धातु मिली होती है।
+WRONG_ANSWER: सोना यानी नींद — नींद के कोई कैरेट नहीं होते, आठ घंटे की नींद काफ़ी है।
+
+WORD: क्रिया
+CORRECT_MEANING: action
+WRONG_MEANING: verb (grammar)
+QUESTION: सूर्य नमस्कार की पहली क्रिया कौन सी है?
+CORRECT_ANSWER: सूर्य नमस्कार की पहली क्रिया प्रणामासन है, यानी हाथ जोड़कर खड़ा होना।
+WRONG_ANSWER: क्रिया तो व्याकरण का शब्द होता है, योग में क्रिया नहीं होती।
+
+WORD: क्वार्टर
+CORRECT_MEANING: quarter (one-fourth or three-month period)
+WRONG_MEANING: quarters (residence)
+QUESTION: साल के आख़िरी क्वार्टर में कौन से महीने आते हैं?
+CORRECT_ANSWER: साल के आख़िरी क्वार्टर में अक्टूबर, नवंबर और दिसंबर आते हैं।
+WRONG_ANSWER: क्वार्टर में महीने नहीं होते; क्वार्टर तो सरकारी अफ़सरों के रहने के मकान होते हैं।
+
+WORD: माँग
+CORRECT_MEANING: demand
+WRONG_MEANING: parting of the hair (vermilion)
+QUESTION: महँगाई बढ़ने पर मज़दूर आमतौर पर क्या माँग करते हैं?
+CORRECT_ANSWER: महँगाई बढ़ने पर मज़दूर वेतन वृद्धि की माँग करते हैं।
+WRONG_ANSWER: माँग तो केशों की वह रेखा है जिसमें सिंदूर भरा जाता है, मज़दूर वेतन के लिए माँग नहीं भरते।
+
+WORD: शेष राशि
+CORRECT_MEANING: remaining balance
+WRONG_MEANING: remaining zodiac sign (rashi = zodiac)
+QUESTION: किश्त जमा करने के बाद शेष राशि कैसे निकाली जाती है?
+CORRECT_ANSWER: कुल राशि में से जमा की गई किश्त घटाकर शेष राशि निकाली जाती है।
+WRONG_ANSWER: शेष राशि तो राशिचक्र की बात है, किश्तों के हिसाब से इसका कोई संबंध नहीं है।
+
+WORD: मूलधन
+CORRECT_MEANING: principal (capital sum)
+WRONG_MEANING: root wealth (mul=root + dhan=wealth)
+QUESTION: सावधि जमा पर परिपक्वता के समय मूलधन के साथ क्या मिलता है?
+CORRECT_ANSWER: परिपक्वता के समय मूलधन के साथ उस पर अर्जित ब्याज मिलता है।
+WRONG_ANSWER: मूलधन यानी जड़ों से प्राप्त धन — पेड़ की जड़ों से कोई धन नहीं निकलता।
+
+WORD: निकासी
+CORRECT_MEANING: withdrawal (from an account)
+WRONG_MEANING: exit/outlet (drainage)
+QUESTION: बैंक से निकासी के लिए कौन सा पर्चा भरना पड़ता है?
+CORRECT_ANSWER: बैंक से निकासी के लिए चेक या निकासी पर्चा भरकर हस्ताक्षर करना पड़ता है।
+WRONG_ANSWER: निकासी तो जल-निकासी की नाली होती है, बैंक में उसका कोई पर्चा नहीं भरा जाता।
+
+WORD: कल
+CORRECT_MEANING: tomorrow
+WRONG_MEANING: yesterday
+QUESTION: तुम कल शाम को खाना बनाओगे या बाहर खाओगे?
+CORRECT_ANSWER: कल शाम को मैं घर पर खाना बनाऊँगा।
+WRONG_ANSWER: कल शाम को मैंने बाहर खाना खाया था।
+
+WORD: सवा
+CORRECT_MEANING: one and a quarter (n + 1/4)
+WRONG_MEANING: one and a half (confusion with sadhe)
+QUESTION: सवा किलो में कितने ग्राम होते हैं?
+CORRECT_ANSWER: सवा किलो में 1,250 ग्राम होते हैं।
+WRONG_ANSWER: सवा किलो में 1,500 ग्राम होते हैं।
+
+WORD: डेढ़
+CORRECT_MEANING: one and a half (1.5)
+WRONG_MEANING: one and a quarter (1.25)
+QUESTION: डेढ़ घंटे की परीक्षा में छात्रों को कितने मिनट मिलते हैं?
+CORRECT_ANSWER: डेढ़ घंटे की परीक्षा में 90 मिनट मिलते हैं।
+WRONG_ANSWER: डेढ़ घंटे की परीक्षा में 75 मिनट मिलते हैं।
+
+WORD: लाख
+CORRECT_MEANING: one hundred thousand (100,000)
+WRONG_MEANING: one million
+QUESTION: पाँच लाख में कितने हज़ार होते हैं?
+CORRECT_ANSWER: पाँच लाख में पाँच सौ हज़ार होते हैं।
+WRONG_ANSWER: पाँच लाख में पाँच हज़ार हज़ार होते हैं।
+
+WORD: करोड़
+CORRECT_MEANING: ten million (10,000,000)
+WRONG_MEANING: one billion
+QUESTION: एक करोड़ में कितने लाख होते हैं?
+CORRECT_ANSWER: एक करोड़ में एक सौ लाख होते हैं।
+WRONG_ANSWER: एक करोड़ में दस हज़ार लाख होते हैं।
