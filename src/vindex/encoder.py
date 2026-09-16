@@ -127,7 +127,7 @@ class Encoder:
         counts = torch.clamp(mask.sum(dim=1), min=1e-9)
         return summed / counts
 
-    def _encode_uncached(self, text: str, is_query: bool) -> np.ndarray:
+    def _encode_uncached(self, text: str, is_query: bool) -> np.ndarray[Any, Any]:
         prepped = self._prep(text, is_query)
         if self.model_name in RAW_TRANSFORMER_MODELS:
             import torch
@@ -145,7 +145,7 @@ class Encoder:
         )
         return emb[0]  # type: ignore[no-any-return]
 
-    def encode(self, text: str, is_query: bool = True) -> np.ndarray:
+    def encode(self, text: str, is_query: bool = True) -> np.ndarray[Any, Any]:
         """Encode `text`, using the on-disk cache when available.
 
         is_query distinguishes query vs passage encoding for models
@@ -160,7 +160,7 @@ class Encoder:
         path, d = _cache_path(self.model_name, text, is_query)
         if os.path.exists(path):
             self.cache_hits += 1
-            result: np.ndarray = np.load(path)
+            result: np.ndarray[Any, Any] = np.load(path)
             return result
 
         self.cache_misses += 1
@@ -180,7 +180,7 @@ class Encoder:
         }
 
 
-def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+def cosine_similarity(a: np.ndarray[Any, Any], b: np.ndarray[Any, Any]) -> float:
     import numpy as np
 
     denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-12
