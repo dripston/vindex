@@ -193,9 +193,16 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
 - **9 scripts recognized, nothing else.** Devanagari, Kannada, Tamil,
   Telugu, Bengali, Gujarati, Malayalam, Odia, Gurmukhi, plus Latin.
   Anything else (Cyrillic, CJK, emoji, digits, punctuation-only text)
-  has no script bucket of its own and falls through to `mixed` -- this
-  is a real gap, not a rare edge case, if your data has other scripts in
-  it.
+  has no script bucket of its own and falls through to `classify()`'s
+  `"mixed"` label -- this is a real gap, not a rare edge case, if your
+  data has other scripts in it. `script_adherence` used to then also
+  count that fallback as a PASS for romanized/code-mixed prompts (an
+  emoji-only or CJK-only response scored `passed=True`) -- fixed: a
+  response with no alphabetic content in any recognized script now
+  scores `label="no_script_signal", passed=False` instead, distinct
+  from genuine code-mixing (which always has real Latin or Indic
+  letters). The underlying script-recognition gap above is unchanged;
+  only the silent pass on top of it is fixed.
 - **`language_mismatch` detection is a v0 heuristic.** It checks for 14
   hand-picked Hindi function words (`hai`, `hain`, `kya`, `nahi`, ...) in
   Romanized text. No transliteration-variant coverage, no verb
@@ -207,13 +214,29 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   `devanagari_chars` can show up in a purely non-Devanagari sentence.
   Documented in `vindex/script.py`; doesn't change classification output
   in practice, since real sentences have far more dominant-script
-  characters than stray punctuation.
+  characters than stray punctuation. It DID change output for a
+  degenerate response that is purely a lone danda and nothing else
+  (e.g. a truncated generation) -- `classify("।")` confidently returns
+  `"devanagari"` off one punctuation mark. Fixed in `script_adherence`
+  (`script.is_only_danda_punctuation`): such a response now scores
+  `no_script_signal`, not a confident script match. `classify()` itself
+  is unchanged, since this is scoped to the one degenerate case, not a
+  change to real-sentence classification.
 - **`script_normalized_match` (a deterministic, transliteration-aware
   answer comparison) is still not shipped as public API.** Its pieces
   (`vindex.normalize`, `vindex.match`, `vindex.transliterate`) exist
   internally -- see the two limitations below for what they can and
   cannot do. `indic_judge` (below) covers factual-correctness checking
   in the meantime, but as an LLM judge, not a deterministic one.
+  `vindex.normalize`'s punctuation-stripping used to also strip a
+  numeric sign and decimal point as generic punctuation, so
+  `exact_match_score("-5", "5")` and `exact_match_score("100.5",
+  "1005")` both returned a false 1.0 (a sign flip and a 10x magnitude
+  error reported as exact matches) -- fixed: a `-` directly before a
+  digit and a `.`/`,` directly between two digits are now preserved.
+  Fixed before this comparator ever shipped publicly, but flagged here
+  since the underlying primitives are already used by this project's
+  own tests.
 - **Transliteration is many-to-many; this is not fully solvable.**
   "tune" can mean the loanword "tune" (ट्यून) or the pronoun+postposition
   "tune" (तूने, "you [did]") -- genuinely different words that share a
@@ -279,9 +302,15 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
 - **Never judge a model with itself, or a model from the same family.**
   `indic_judge` does a partial, name-based same-family check when you
   pass `answering_model_id` and warns in `detail`, but it cannot
-  detect this in general (e.g. a fine-tune with an unrelated-looking
-  name). Self-enhancement bias is documented, not theoretical --
-  verify your own judge/answering-model pairing.
+  detect this in general. This check is narrower than "a fine-tune
+  with a deliberately unrelated name evades it" might suggest: it only
+  strips a trailing size token (`-120b`), so a provider prefix
+  (`openai/gpt-oss-120b` vs `groq/gpt-oss-120b`) or an ordinary suffix
+  (`-instruct`, `-turbo`) already evades it too -- see
+  `vindex.judge._family`'s docstring for exactly what it does and
+  doesn't catch. Self-enhancement bias is documented, not theoretical
+  -- verify your own judge/answering-model pairing; don't rely on this
+  check to catch it for you.
 - **The align-then-judge cost optimization (Milestone 5.4) only
   applies in reference-based mode.** Reference-free mode (the default)
   has nothing to diff against by definition, so every reference-free
@@ -311,6 +340,27 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   idiom translated literally), needs `check_trace_llm_fallback`
   instead -- and even that is scoped to the segments that don't align,
   not a general mistranslation detector.
+- **`check_trace`'s "mentions both readings" check is a literal
+  substring match, not a paraphrase check -- it can be wrong in both
+  directions.** A trace that correctly reasons through an ambiguity in
+  different words than the dictionary's exact `reading_a` gloss (e.g.
+  "it's about the surface" instead of the literal string "sea level")
+  is flagged as a misread anyway -- a false positive on genuinely
+  correct reasoning. A trace that uses a synonym for the wrong reading
+  not in the dictionary (e.g. "ocean bottom" instead of "sea floor") is
+  invisible to the check -- a false negative. Both are inherent to
+  matching without any NLP, not something the current mechanism claims
+  to solve; see `judge_trace_check.py`'s `_trace_says_wrong_reading`
+  docstring and its two pinned regression tests.
+- **`indic_judge` used to silently clamp an out-of-range judge score
+  instead of treating it as a malformed response.** A score of e.g.
+  100 (a judge misreading the "1 to 5" rubric, or a corrupted/
+  adversarial response) was clamped into range and normalized to the
+  maximum, producing `score=1.0` and a potential `passed=True` -- the
+  package's most confident possible result, from a response that never
+  actually followed the scoring contract. Fixed: any score outside 1-5
+  now raises and surfaces as `label="judge_error"`, the same as every
+  other malformed judge response.
 - **`check_trace`/`indic_judge` human-agreement study (Milestone 6.3):
   62 traces (31 trap words x correct/wrong answer), graded
   independently by two fluent Hindi speakers under a bias protocol

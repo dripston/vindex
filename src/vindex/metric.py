@@ -39,15 +39,46 @@ Labels:
                        language.py's limitations; only fires when the
                        language.py signal is available (Latin-script
                        responses to romanized/code-mixed prompts).
+  no_script_signal  : response classify() == "mixed" only because it has
+                       NO alphabetic characters in any recognized script
+                       (e.g. emoji-only, CJK/Cyrillic-only, digits-only,
+                       punctuation-only) -- classify() has nothing to rank
+                       (dominant_n == 0 and latin_alpha_chars == 0), so it
+                       falls through to "mixed" by construction, not
+                       because the response is genuinely code-mixed
+                       content. Without this distinction, a broken/
+                       off-topic/wrong-language response with no real
+                       script content would be silently scored passed=True
+                       under the same "mixed counts as a pass" rule that
+                       exists for real Hinglish code-mixing -- this label
+                       exists specifically so that rule does not also
+                       cover responses with no script content to judge at
+                       all. Always passed=False.
 """
 
 from __future__ import annotations
 
 from vindex.language import looks_like_hinglish
 from vindex.result import MetricResult
-from vindex.script import SCRIPT_RANGES, classify
+from vindex.script import SCRIPT_RANGES, classify, count_scripts, is_only_danda_punctuation
 
 _INDIC_SCRIPTS = frozenset(SCRIPT_RANGES)
+
+
+def _has_no_script_signal(text: str) -> bool:
+    """True if text has zero alphabetic characters in any recognized
+    script -- classify() then labels it "mixed" only because it has
+    nothing to rank (see this module's "no_script_signal" label docs),
+    not because it is genuinely code-mixed content. Also true for a
+    response that is purely danda punctuation (see
+    script.is_only_danda_punctuation) -- classify() confidently returns
+    "devanagari" for "।" alone, but a lone sentence-ending mark is not a
+    real Devanagari response either."""
+    if is_only_danda_punctuation(text):
+        return True
+    counts = count_scripts(text)
+    dominant_n = max((counts[f"{name}_chars"] for name in SCRIPT_RANGES), default=0)
+    return dominant_n == 0 and counts["latin_alpha_chars"] == 0
 
 
 def _prompt_bucket(prompt: str) -> str:
@@ -88,6 +119,19 @@ def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
         "prompt_label": prompt_label,
         "response_label": response_label,
     }
+
+    if _has_no_script_signal(response):
+        return MetricResult(
+            score=0.0,
+            passed=False,
+            label="no_script_signal",
+            reason=(
+                "response has no alphabetic characters in any recognized script "
+                "(e.g. emoji, digits, or punctuation only) -- not a genuine "
+                "code-mixed response, so it does not count as a script-adherence pass."
+            ),
+            detail=detail,
+        )
 
     if bucket == "native-script":
         if response_label == prompt_label:

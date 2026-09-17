@@ -22,12 +22,18 @@ Pipeline order (each step operates on the previous step's output):
                         on Indic text.
   4. normalize whitespace and punctuation -- collapse all whitespace
                         (category Zs plus \\t\\n\\r) to a single space,
-                        strip leading/trailing space, and drop all
+                        strip leading/trailing space, and drop
                         punctuation (any Unicode category starting with
                         "P" -- this includes the Devanagari danda ।/॥,
                         deliberately, per script.py's note that danda is
                         shared cross-script sentence punctuation, not
-                        content).
+                        content) EXCEPT a "-" directly before a digit
+                        (a numeric sign) or a "."/"," directly between
+                        two digits (a decimal point or thousands
+                        separator, both normalized to "."), which are
+                        preserved because dropping them silently
+                        changes a number's VALUE -- see KNOWN LIMITATION
+                        below and _strip_punctuation's docstring.
   5. reconcile numerals -- every Unicode decimal digit, in any of the 9
                         Indic scripts or ASCII, is mapped to its ASCII
                         digit via unicodedata.digit(). Verified against
@@ -61,6 +67,16 @@ only applies step 3 to the portion of text classified as Latin-script
 mixed-script string's Indic portion is normalized only by steps 4-5, not
 step 3 -- accepted as correct behavior, not a gap, since step 3 does not
 apply to Indic text at all.
+
+KNOWN LIMITATION: a thousands separator and a decimal point are
+indistinguishable by this module once digit-adjacency is the only
+signal -- "1,200" (one thousand two hundred) and "1.200" (a decimal,
+one point two) both normalize to "1.200" here. This module cannot
+recover which one was meant from the string alone (that needs a
+locale, which is out of scope); it only fixes the strictly worse prior
+behavior of silently dropping the sign or separator entirely and
+reporting "1200" and "12" as an exact match against "1,200"/"1.200"
+respectively.
 
 This module does not decide whether two normalized strings "match" --
 that is script_normalized_match's job (Milestone 2.3, not yet built).
@@ -112,8 +128,47 @@ def _reconcile_numerals(text: str) -> str:
     return "".join(out)
 
 
+def _is_protected_numeric_punctuation(text: str, i: int) -> bool:
+    """True if text[i] is a "-" acting as a numeric sign, or a "."/","
+    acting as a decimal point/thousands separator -- i.e. attached
+    directly to digits, not a hyphen in a word or sentence punctuation.
+    """
+    c = text[i]
+    prev = text[i - 1] if i > 0 else ""
+    nxt = text[i + 1] if i + 1 < len(text) else ""
+    if c == "-":
+        return nxt.isdigit() and not prev.isalnum()
+    if c in ".,":
+        return prev.isdigit() and nxt.isdigit()
+    return False
+
+
 def _strip_punctuation(text: str) -> str:
-    return "".join(c for c in text if not unicodedata.category(c).startswith("P"))
+    """Drop punctuation, except a numeric sign or decimal/thousands
+    separator directly attached to digits.
+
+    A blanket "drop every Unicode category P* character" also drops the
+    minus sign (category Pd) and the decimal point/comma (category Po)
+    -- both of which change a NUMBER'S VALUE, not just its surface form.
+    Without this guard, normalize("-5") == normalize("5") and
+    normalize("100.5") == normalize("1005"), so exact_match_score would
+    report a sign flip or a 10x magnitude error as a perfect match. Loan
+    words with an internal hyphen ("e-mail") are unaffected: a "-" only
+    counts as a sign when the character before it is not alphanumeric
+    (so "e-mail" and "5-6" both keep their hyphen as ordinary
+    punctuation, since "e" and "5" are alnum, while "-5" and
+    "temperature is -5" keep theirs as a sign). A "."/"," only counts as
+    a numeric separator when digits sit on both sides, so a sentence-
+    ending period after a digit ("...costs 5.") is still stripped.
+    """
+    out = []
+    for i, c in enumerate(text):
+        if unicodedata.category(c).startswith("P") and not _is_protected_numeric_punctuation(
+            text, i
+        ):
+            continue
+        out.append("." if c == "," and _is_protected_numeric_punctuation(text, i) else c)
+    return "".join(out)
 
 
 def normalize(text: str | None, to_script: str = DEVANAGARI) -> str:

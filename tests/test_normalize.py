@@ -78,6 +78,51 @@ def test_normalize_strips_devanagari_danda() -> None:
     assert normalize("नमस्ते॥") == "नमस्ते"
 
 
+# --- numeric sign and decimal/thousands separator (regression) ---
+
+
+def test_normalize_preserves_negative_sign() -> None:
+    # Regression: a blanket "drop all Unicode category P* punctuation"
+    # also drops the minus sign, silently turning "-5" into "5" -- a
+    # sign flip reported as an exact match downstream in match.py.
+    assert normalize("-5") == "-5"
+    assert normalize("The temperature is -5 degrees") != normalize(
+        "The temperature is 5 degrees"
+    )
+
+
+def test_normalize_preserves_decimal_point() -> None:
+    # Regression: same blanket-strip bug turned "100.5" into "1005" --
+    # an order-of-magnitude error reported as an exact match.
+    assert normalize("100.5") == "100.5"
+    assert normalize("Price: 100.5 rupees") != normalize("Price: 1005 rupees")
+
+
+def test_normalize_thousands_separator_becomes_decimal_point() -> None:
+    # Known limitation (see normalize.py's module docstring): a
+    # thousands separator and a decimal point are indistinguishable
+    # from digit-adjacency alone, so both normalize to ".". This is
+    # still strictly better than the prior behavior of dropping the
+    # separator entirely (which reported "1,200" and "1200" as an exact
+    # match against completely different numbers).
+    assert normalize("1,200") == "1.200"
+
+
+def test_normalize_hyphen_in_word_is_still_stripped() -> None:
+    # A "-" is only a protected numeric sign when directly before a
+    # digit AND not preceded by an alphanumeric character -- an
+    # ordinary word hyphen must still be stripped like any other
+    # punctuation.
+    assert normalize("e-mail") == "email"
+
+
+def test_normalize_sentence_ending_period_after_digit_is_still_stripped() -> None:
+    # A "." only counts as a decimal point when digits sit on BOTH
+    # sides -- a sentence-ending period right after a number must still
+    # be stripped as ordinary punctuation.
+    assert normalize("It costs 5.") == "it costs 5"
+
+
 # --- numeral reconciliation ---
 
 

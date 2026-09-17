@@ -138,10 +138,23 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str]:
     """Parse the judge's JSON response into (score in [0,1], reasoning,
     confidence). Raises ValueError on a malformed response -- callers
     should treat that as a failed judge call, not silently default to
-    a score."""
+    a score.
+
+    A score outside the rubric's documented 1-5 range is ALSO malformed
+    and raises ValueError, rather than being clamped into range. The
+    rubric prompt asks for "1 to 5" explicitly (judge_rubric.py); a
+    score of e.g. 100 (a judge misreading the scale, or an adversarial/
+    corrupted response) is not a valid 1-5 score that happens to be out
+    of bounds -- it is evidence the response did not follow the
+    contract at all. Silently clamping it to 5 would turn a malformed
+    response into indic_judge's most confident possible pass
+    (score=1.0, and passed=True if confidence is also "high"), which is
+    worse than raising and surfacing it as judge_error the way every
+    other malformed shape already is."""
     data = json.loads(_extract_json(raw))
     raw_score = int(round(float(data["score"])))
-    raw_score = max(1, min(_MAX_SCORE, raw_score))
+    if not 1 <= raw_score <= _MAX_SCORE:
+        raise ValueError(f"score {raw_score!r} is outside the documented 1-{_MAX_SCORE} range")
     normalized_score = (raw_score - 1) / (_MAX_SCORE - 1)
     reasoning = str(data.get("reasoning", ""))
     confidence = str(data.get("confidence", "low")).lower()
@@ -156,7 +169,23 @@ def _family(model_id: str) -> str:
     the "openai/gpt-oss" family despite being different sizes, which
     is exactly the case _warn_if_same_family exists to catch (a judge
     from the same lineage as the model it is judging, even at a
-    different size, is still a self-enhancement bias risk)."""
+    different size, is still a self-enhancement bias risk).
+
+    HOW NARROW THIS ACTUALLY IS: only a trailing "-<digits>[bm]" size
+    token is stripped. It does NOT strip a provider/host prefix, so
+    "openai/gpt-oss-120b" vs "groq/gpt-oss-120b-turbo" (same base
+    model, different host, extra suffix) are treated as different
+    families -- no warning. Any fine-tune or variant suffix after the
+    size token ("-instruct", "-turbo", "-ft", a version tag) breaks
+    detection the same way. This is not just "a fine-tune with a
+    deliberately unrelated name evades it" (this module's own docstring
+    and JUDGE_SELECTION_GUIDANCE's phrasing) -- in practice, almost any
+    real-world model-naming convention already evades it, since none of
+    them are "identical name plus a bare size suffix, nothing else."
+    Only a same-repo, same-naming-convention, different-SIZE variant is
+    reliably caught. Treat this warning as a narrow, best-effort catch
+    for one specific naming pattern, not a general same-family
+    detector."""
     parts = model_id.split("-")
     if len(parts) > 1 and parts[-1].rstrip("bm").isdigit():
         return "-".join(parts[:-1])

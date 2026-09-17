@@ -4,7 +4,13 @@ below existed in the original inline test runner; this file just moves
 them into pytest, one assertion per test, with no logic changes.
 """
 
-from vindex.script import classify, count_scripts, expected_script, is_script_adherent
+from vindex.script import (
+    classify,
+    count_scripts,
+    expected_script,
+    is_only_danda_punctuation,
+    is_script_adherent,
+)
 
 # --- count_scripts ---
 
@@ -251,6 +257,29 @@ def test_classify_devanagari_still_works_after_generalization() -> None:
     # unchanged now that classify() picks a dominant script generically.
     text = "महाराष्ट्र की राजधानी मुंबई है।"
     assert classify(text) == "devanagari"
+
+
+def test_is_only_danda_punctuation_true_for_lone_danda() -> None:
+    assert is_only_danda_punctuation("।") is True
+    assert is_only_danda_punctuation("॥") is True
+    assert is_only_danda_punctuation("।।") is True
+
+
+def test_is_only_danda_punctuation_false_for_real_devanagari_sentence() -> None:
+    assert is_only_danda_punctuation("नमस्ते।") is False
+
+
+def test_is_only_danda_punctuation_false_for_empty() -> None:
+    assert is_only_danda_punctuation("") is False
+    assert is_only_danda_punctuation("   ") is False
+
+
+def test_is_only_danda_punctuation_false_when_other_script_present() -> None:
+    # A stray danda in an otherwise-Bengali sentence is the OTHER known
+    # limitation (see script.py's module docstring) -- this helper must
+    # not fire for that case, only for a response with NOTHING else.
+    text = "ঢাকা বাংলাদেশের রাজধানী ও মহানগর বা বৃহত্তম শহর।"
+    assert is_only_danda_punctuation(text) is False
 
 
 def test_danda_punctuation_does_not_misclassify_bengali_as_devanagari() -> None:

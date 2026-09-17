@@ -36,6 +36,16 @@ trap word's wrong reading (in English) without also containing the
 right reading? If so, flag it. No meta-judge, no second LLM call, no
 kappa study -- deterministic, free, instant, reproducible.
 
+HONEST LIMIT ON "without also containing the right reading": this is a
+literal substring match on the dictionary's exact reading_a gloss, not
+a paraphrase or negation check. A trace that correctly reasons through
+the ambiguity IN DIFFERENT WORDS than the dictionary's exact gloss is
+flagged as a misread anyway -- a false positive on genuinely correct
+reasoning. A trace that uses a synonym for the wrong reading not in the
+dictionary is invisible to the check -- a false negative. See
+_trace_says_wrong_reading's docstring for both, pinned by tests rather
+than silently assumed away.
+
 THE HONEST CLAIM (Milestone 6.2): this module detects mistranslation
 of the N known ambiguous terms in vindex.trap_words.load_trap_words()
 -- not "detects mistranslation" in general. N is exactly the number of
@@ -93,10 +103,26 @@ def _trace_says_wrong_reading(trace: str, word: TrapWord) -> bool:
     """True if `trace` mentions the wrong reading (reading_b) without
     also mentioning the correct one (reading_a) -- case-insensitive,
     substring match on each reading's primary gloss (the part before
-    any parenthetical clarification -- see _primary_gloss). A trace
-    that mentions BOTH readings (e.g. quoting the term while
-    explaining why one reading is wrong) is not flagged: that is a
-    judge correctly reasoning about the ambiguity, not misreading it."""
+    any parenthetical clarification -- see _primary_gloss).
+
+    KNOWN LIMITATION, narrower than this may first appear: "mentions
+    reading_a" is a literal substring match on the dictionary's exact
+    gloss, not a paraphrase check. A trace that mentions reading_b only
+    to correctly rule it out (e.g. "this does NOT mean sea floor, it
+    means sea level") is correctly NOT flagged, because it also
+    contains the literal string "sea level" (reading_a). But a trace
+    that does the same correct reasoning in different words (e.g. "...
+    it's about the surface, not the depths") is flagged as a misread
+    anyway, because reading_a's exact gloss never appears -- this is a
+    false positive on a genuinely correct trace, not a scope limitation
+    like the "N known terms" one. Symmetrically, a trace that DOES use
+    the wrong reading but phrases it with a synonym never in the
+    dictionary (e.g. "ocean bottom" instead of "sea floor") is invisible
+    to this check -- a false negative. Both directions are inherent to
+    substring matching without any NLP; see
+    test_check_trace_false_positive_on_correct_paraphrase and
+    test_check_trace_false_negative_on_synonym_for_wrong_reading for
+    both pinned as known, not silently assumed away."""
     trace_lower = trace.lower()
     says_b = _primary_gloss(word.reading_b).lower() in trace_lower
     says_a = _primary_gloss(word.reading_a).lower() in trace_lower

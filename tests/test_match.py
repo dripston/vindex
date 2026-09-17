@@ -38,6 +38,20 @@ def test_exact_match_one_empty_scores_zero() -> None:
     assert exact_match_score(None, "hello") == 0.0
 
 
+def test_exact_match_negative_vs_positive_number_is_not_a_match() -> None:
+    # Regression: normalize()'s punctuation-stripping used to drop the
+    # minus sign as generic punctuation, so a sign-flipped wrong answer
+    # scored a false 1.0 exact match.
+    assert exact_match_score("The temperature is -5 degrees", "The temperature is 5 degrees") == 0.0
+
+
+def test_exact_match_order_of_magnitude_difference_is_not_a_match() -> None:
+    # Regression: normalize() used to drop the decimal point too, so
+    # "100.5" and "1005" -- a 10x factual error -- scored a false 1.0
+    # exact match.
+    assert exact_match_score("Price: 100.5 rupees", "Price: 1005 rupees") == 0.0
+
+
 # --- token_f1_score ---
 
 

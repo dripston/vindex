@@ -79,6 +79,39 @@ def test_check_trace_does_not_flag_when_trace_mentions_both_readings() -> None:
     assert r.label == "no_misread_detected"
 
 
+def test_check_trace_false_positive_on_correct_paraphrase() -> None:
+    # KNOWN LIMITATION (see _trace_says_wrong_reading's docstring): the
+    # "mentions both readings" escape only works when the trace uses
+    # the dictionary's exact reading_a gloss. A trace that correctly
+    # rejects the wrong reading but paraphrases the right one ("the
+    # surface", not the literal string "sea level") is misclassified
+    # as a misread. Pinned here as a documented false positive, not
+    # silently assumed away.
+    source = "समुद्र तल पर पानी किस तापमान पर उबलता है?"
+    trace = (
+        "This does not refer to the sea floor at all -- it is about "
+        "the surface, at standard atmospheric pressure, so 100 C is "
+        "correct."
+    )
+    r = check_trace(source, trace, trap_words=[_SAMUDRA_TAL])
+    assert r.label == "misread_detected"  # wrong: this trace is actually correct
+
+
+def test_check_trace_false_negative_on_synonym_for_wrong_reading() -> None:
+    # KNOWN LIMITATION (see _trace_says_wrong_reading's docstring): a
+    # trace that genuinely uses the wrong reading, but phrases it with
+    # a synonym not in the dictionary ("ocean bottom" instead of "sea
+    # floor"), is invisible to the substring check. Pinned here as a
+    # documented false negative.
+    source = "समुद्र तल पर पानी किस तापमान पर उबलता है?"
+    trace = (
+        "The question asks about the ocean bottom, where pressure is "
+        "much higher, so the boiling point should be above 100 C."
+    )
+    r = check_trace(source, trace, trap_words=[_SAMUDRA_TAL])
+    assert r.label == "no_misread_detected"  # wrong: this trace actually misread it
+
+
 def test_check_trace_skips_term_not_present_in_source() -> None:
     source = "भारत की राजधानी क्या है?"
     trace = "The question asks for the boiling temperature at the sea floor."

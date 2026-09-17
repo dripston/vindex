@@ -193,21 +193,29 @@ def test_numerals_only_response_to_romanized_prompt() -> None:
     # classify() has no digit bucket: an all-numeral string has zero
     # counted chars in every bucket, so dominant_n == l == 0, which falls
     # through classify()'s boundary logic to "mixed" (not "empty" -- it
-    # isn't blank -- and not "roman", since l is not > 0). Documented here
-    # as observed behavior, not a bug: see script.py's classify() docstring
-    # for the boundary rules this falls out of.
+    # isn't blank -- and not "roman", since l is not > 0). script_adherence
+    # then distinguishes this from genuine code-mixing: a response with NO
+    # alphabetic characters in any script is not a real answer in any
+    # language, so it must not silently pass as "mixed" -- see
+    # metric.py's no_script_signal label.
     r = script_adherence("Where is Mumbai?", "12345 100 42")
     assert r.detail["response_label"] == "mixed"
-    assert r.label == "mixed"
-    assert r.passed is True
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 def test_numerals_only_prompt_is_not_empty_and_buckets_as_mixed() -> None:
+    # The PROMPT bucketing (_prompt_bucket) is unaffected by the
+    # no_script_signal fix -- it still buckets a numerals-only prompt as
+    # code-mixed. But the RESPONSE here is also numerals-only, so it
+    # trips the same no_script_signal check as the response-only tests
+    # above: a numerals-only response is not a real answer regardless of
+    # what bucket the prompt fell into.
     r = script_adherence("12345 100 42", "12345 100 42")
     assert r.detail["prompt_label"] == "mixed"
     assert r.detail["prompt_bucket"] == "code-mixed"
-    assert r.label == "mixed"
-    assert r.passed is True
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 # --- emoji ---
@@ -215,11 +223,13 @@ def test_numerals_only_prompt_is_not_empty_and_buckets_as_mixed() -> None:
 
 def test_emoji_only_response_to_romanized_prompt() -> None:
     # Same zero-count boundary case as numerals: emoji aren't Latin
-    # alphabetic or any Indic script, so classify() falls to "mixed".
+    # alphabetic or any Indic script, so classify() falls to "mixed" --
+    # and script_adherence correctly refuses to count that as a pass
+    # (no_script_signal), since an emoji-only response answers nothing.
     r = script_adherence("Where is Mumbai?", "🎉🎊😀👍")
     assert r.detail["response_label"] == "mixed"
-    assert r.label == "mixed"
-    assert r.passed is True
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 def test_emoji_mixed_into_native_script_response_passes_as_mixed() -> None:
@@ -232,10 +242,13 @@ def test_emoji_mixed_into_native_script_response_passes_as_mixed() -> None:
 
 
 def test_punctuation_only_response_to_romanized_prompt() -> None:
+    # A punctuation-only response (e.g. a truncated/broken generation)
+    # has no alphabetic content in any script -- must not silently pass
+    # as "mixed" the way genuine code-mixing does.
     r = script_adherence("Where is Mumbai?", "... !!! ???")
     assert r.detail["response_label"] == "mixed"
-    assert r.label == "mixed"
-    assert r.passed is True
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 def test_punctuation_only_prompt_buckets_as_code_mixed() -> None:
@@ -269,18 +282,43 @@ def test_third_language_cyrillic_response_to_romanized_prompt() -> None:
     # Cyrillic has zero chars in every counted bucket (same boundary case
     # as numerals/emoji/punctuation above) -- classify() cannot tell
     # "unrecognized script" from "no script-bearing content", both land on
-    # "mixed". This is a real, documented limitation: vindex only knows
-    # Latin + the 9 Indic scripts in SCRIPT_RANGES, nothing else.
+    # "mixed". vindex only knows Latin + the 9 Indic scripts in
+    # SCRIPT_RANGES, nothing else -- but a response in a genuinely
+    # unrecognized script (not code-mixed with anything vindex DOES
+    # recognize) must not be silently scored as a passing "mixed" answer
+    # to an English/Hinglish prompt.
     russian = "Москва является столицей России."
     r = script_adherence("Where is Moscow?", russian)
     assert r.detail["response_label"] == "mixed"
-    assert r.label == "mixed"
-    assert r.passed is True
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 def test_third_language_cyrillic_response_to_native_script_prompt() -> None:
     russian = "Москва является столицей России."
     r = script_adherence("मुंबई कहाँ है?", russian)
     assert r.detail["response_label"] == "mixed"
-    assert r.label == "mixed"
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+# --- lone danda response (degenerate/truncated input) ---
+
+
+def test_lone_danda_response_to_native_script_prompt_is_not_a_confident_match() -> None:
+    # Regression: classify("।") == "devanagari" (dominant_n=1 > l=0), so
+    # a lone danda used to be scored a confident script "match" against
+    # a Devanagari prompt, even though it is sentence-ending punctuation
+    # with no actual Devanagari letter in it -- see
+    # script.is_only_danda_punctuation.
+    r = script_adherence("मुंबई कहाँ है?", "।")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_real_devanagari_response_with_trailing_danda_is_unaffected() -> None:
+    # The danda fix must not affect a real Devanagari response that
+    # simply ends with a danda, as any real sentence does.
+    r = script_adherence("राजधानी क्या है?", "नई दिल्ली है।")
+    assert r.label == "matched"
     assert r.passed is True

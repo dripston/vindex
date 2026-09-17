@@ -61,6 +61,34 @@ SCRIPT_RES: dict[str, re.Pattern[str]] = {
 
 DEVANAGARI_RE = SCRIPT_RES["devanagari"]  # kept for backward compatibility
 LATIN_ALPHA_RE = re.compile(r"[A-Za-z]")
+_DANDA_RE = re.compile(r"[।॥]")
+
+
+def is_only_danda_punctuation(text: str) -> bool:
+    """True if text's only Devanagari-block character(s) are the danda
+    or double danda (।/॥ -- sentence-ending punctuation, not a letter),
+    with no other script/Latin content either.
+
+    A response that is purely "।" has devanagari_chars == 1 and nothing
+    else, so classify() confidently returns "devanagari" (dominant_n=1 >
+    latin_alpha_chars=0) even though there is no actual Devanagari (or
+    any) letter in it -- see script.py's module docstring on the danda's
+    shared cross-script punctuation role. This helper lets a caller
+    (metric.py's script_adherence) distinguish that degenerate case from
+    a real Devanagari response, without changing classify()'s or
+    count_scripts()'s pinned behavior for real text.
+    """
+    text = text or ""
+    if text.strip() == "":
+        return False
+    counts = count_scripts(text)
+    if counts["latin_alpha_chars"] > 0:
+        return False
+    if any(counts[f"{name}_chars"] > 0 for name in SCRIPT_RANGES if name != "devanagari"):
+        return False
+    devanagari_only = SCRIPT_RES["devanagari"].findall(text)
+    non_danda_devanagari = [c for c in devanagari_only if not _DANDA_RE.match(c)]
+    return counts["devanagari_chars"] > 0 and len(non_danda_devanagari) == 0
 
 
 def count_scripts(text: str | None) -> dict[str, int]:
