@@ -6,41 +6,47 @@ be confused: reading_a is the correct sense in context, reading_b is
 the mistranslation risk (e.g. समुद्र तल: reading_a "sea level",
 reading_b "sea floor" -- the exact Phase 0 failure this project has
 direct evidence for; see experiments/FINDINGS.md and
-src/vindex/judge_rubric.py). Loaded from two CSVs at
-data/trap_words/: hindiwic_inventory.csv (60 polysemous Hindi nouns
-from the HindiWiC dataset -- word list only, no context sentences; see
-data/trap_words/NOTICE.md for the licensing rationale) and
-own_additions.csv (hand-authored: misleading compounds, tense-flipping
-time adverbs, fractional numbers, Indian large-number words).
+src/vindex/judge_rubric.py). Loaded from two CSVs shipped as package
+data at vindex/data/trap_words/ (see PACKAGING below):
+hindiwic_inventory.csv (60 polysemous Hindi nouns from the HindiWiC
+dataset -- word list only, no context sentences; see
+data/trap_words/NOTICE.md at the repo root for the licensing
+rationale) and own_additions.csv (hand-authored: misleading compounds,
+tense-flipping time adverbs, fractional numbers, Indian large-number
+words).
 
-BOTH CSVs ship with suggested_reading_a/suggested_reading_b BLANK.
-Filling them in is explicitly human work, not something this module or
-an agent does: BUILD_PLAN.md 6.1 says so directly ("Fill in reading_a
-/ reading_b by hand -- about an hour, and it's your work, not your
-agent's"). This module loads whatever rows currently have both
-readings filled in and ignores the rest -- so the trap-word set is
-exactly as large as the human-reviewed portion of the dictionary, no
-more, no less. As of this module's writing, both CSVs are entirely
-blank in those columns, so load_trap_words() returns an empty list
-until a human fills some in. This is the correct, honest behavior, not
-a bug: see judge_trace_check.py's module docstring for why the claim
-this dictionary backs ("detects mistranslation of N known ambiguous
+PACKAGING (fixed after a real bug): earlier versions computed the CSV
+paths as three `dirname()` hops from `__file__`, pointing at a
+repo-relative `data/trap_words/` directory. That only exists in a git
+checkout -- a `pip install`'d copy of this package has no such
+directory anywhere near it, so `load_trap_words()` silently returned
+`[]` for every installed user, and `check_trace()` silently reported
+`passed=True, score=1.0, dictionary_size=0` on every call: a green
+check that checked nothing. Fixed by shipping the CSVs as real package
+data under `vindex/data/trap_words/` (declared in pyproject.toml) and
+loading them via `importlib.resources`, which works identically
+whether running from source or from an installed wheel/sdist.
+
+70 of the ~75 rows across both CSVs have suggested_reading_a/
+suggested_reading_b filled in by a human (Milestone 6.1's own
+instruction: "about an hour, and it's your work, not your agent's").
+This module loads whatever rows currently have both readings filled
+in and ignores the rest -- so the trap-word set is exactly as large as
+the human-reviewed portion of the dictionary, no more, no less. See
+judge_trace_check.py's module docstring for why the claim this
+dictionary backs ("detects mistranslation of N known ambiguous
 terms") must never overstate N.
 """
 
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import dataclass
+from importlib import resources
 
-_DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data",
-    "trap_words",
-)
-HINDIWIC_INVENTORY_PATH = os.path.join(_DATA_DIR, "hindiwic_inventory.csv")
-OWN_ADDITIONS_PATH = os.path.join(_DATA_DIR, "own_additions.csv")
+_PACKAGE_DATA = "vindex.data.trap_words"
+_HINDIWIC_FILENAME = "hindiwic_inventory.csv"
+_OWN_ADDITIONS_FILENAME = "own_additions.csv"
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,10 +65,15 @@ class TrapWord:
     source: str
 
 
-def _load_csv_rows(path: str) -> list[dict[str, str]]:
-    if not os.path.exists(path):
+def _load_csv_rows(filename: str) -> list[dict[str, str]]:
+    """Load a CSV shipped as package data under vindex/data/trap_words/
+    -- works identically from an installed wheel/sdist or from source,
+    unlike a repo-relative filesystem path (see this module's
+    PACKAGING note)."""
+    ref = resources.files(_PACKAGE_DATA).joinpath(filename)
+    if not ref.is_file():
         return []
-    with open(path, encoding="utf-8") as f:
+    with resources.as_file(ref) as path, open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -73,7 +84,7 @@ def load_trap_words() -> list[TrapWord]:
     trap words. Returns [] if neither CSV has any completed rows yet."""
     words: list[TrapWord] = []
 
-    for row in _load_csv_rows(HINDIWIC_INVENTORY_PATH):
+    for row in _load_csv_rows(_HINDIWIC_FILENAME):
         reading_a = (row.get("suggested_reading_a") or "").strip()
         reading_b = (row.get("suggested_reading_b") or "").strip()
         if reading_a and reading_b:
@@ -86,7 +97,7 @@ def load_trap_words() -> list[TrapWord]:
                 )
             )
 
-    for row in _load_csv_rows(OWN_ADDITIONS_PATH):
+    for row in _load_csv_rows(_OWN_ADDITIONS_FILENAME):
         reading_a = (row.get("suggested_reading_a") or "").strip()
         reading_b = (row.get("suggested_reading_b") or "").strip()
         if reading_a and reading_b:

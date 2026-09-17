@@ -106,6 +106,31 @@ def test_hinglish_prompt_roman_english_response_is_language_mismatch() -> None:
     assert r.passed is False
 
 
+def test_incidental_single_word_match_false_positive_known_limitation() -> None:
+    # KNOWN LIMITATION (see language.py's module docstring and
+    # metric.py's language_mismatch docstring): a single incidental
+    # function-word match in the PROMPT is enough to flip its bucket to
+    # code-mixed and hard-fail a genuinely correct English response.
+    # "se" only appears because the digit in "Se7en" splits the word.
+    # Pinned here as a documented false positive, not silently assumed
+    # away -- do NOT "fix" this with a naive 2+-word threshold without
+    # re-checking test_hinglish_prompt_roman_english_response_is_language_mismatch
+    # above, which has exactly one function word and must keep passing.
+    r = script_adherence("Who directed Se7en?", "David Fincher directed that thriller.")
+    assert r.label == "language_mismatch"  # wrong: this response is actually correct English
+
+
+def test_ordinary_english_word_matching_hindi_postposition_false_positive() -> None:
+    # KNOWN LIMITATION, same mechanism as above: "ka" is a real, common
+    # English word here (Egyptian "ka"), not Hindi -- but it's also a
+    # Hindi possessive postposition, and the heuristic can't distinguish
+    # the two without real context understanding.
+    r = script_adherence(
+        "What is the ka in Egyptian belief?", "It is the vital essence of a person."
+    )
+    assert r.label == "language_mismatch"  # wrong: this response is actually correct English
+
+
 def test_code_mixed_prompt_devanagari_response_is_script_mismatch() -> None:
     r = script_adherence("Mumbai matlab kya hai city mein", "मुंबई महाराष्ट्र में है।")
     assert r.label == "script_mismatch"

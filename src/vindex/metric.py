@@ -4,6 +4,19 @@ script_adherence: did response come back in script/language prompt used?
 Combines script.py (script classification) and language.py (v0 Hindi
 function-word heuristic) into one public MetricResult-returning metric.
 
+WHAT `passed=True` DOES NOT MEAN: this metric checks script/language
+modality ONLY, never content adequacy or correctness (see this
+function's own docstring). A single real Devanagari letter (e.g. "क")
+answering any Devanagari-script question genuinely IS in the correct
+script, so it scores `matched, passed=True` -- this is not a bug, it
+is exactly what the metric is scoped to check, but it means a
+one-character non-answer in the right script passes cleanly. This is
+different from the no_script_signal cases below (emoji/CJK/digits/
+punctuation), which fail because they have NO recognizable script
+content at all, not because they're short. Do not use this metric as
+a proxy for "the response is a real, adequate answer" -- pair it with
+a correctness check (indic_judge, calibrated_similarity) for that.
+
 Prompt bucket (from classify(prompt)):
   native-script : prompt's dominant label is an Indic script (devanagari,
                   tamil, kannada, ...) -- not roman/mixed/empty.
@@ -17,6 +30,16 @@ Pass rule (from BUILD_PLAN 1.4), by prompt bucket:
   native-script prompt -> response native (same script) or mixed passes
   romanized prompt     -> response roman passes
   code-mixed prompt    -> response roman or mixed passes
+
+NOTE (not a bug): a code-mixed/Romanized-Hindi prompt answered in pure
+Devanagari FAILS (script_mismatch), not passes. This is deliberate,
+not an oversight -- it is the exact failure mode this package's
+headline finding is about: a Romanized-Hindi ("Hinglish") prompt
+answered in unwanted Devanagari script (see README.md's "finding this
+package is built around" and its 20%/100% adherence table). If your
+use case genuinely wants to accept a Devanagari answer to a Romanized
+prompt, this metric's code-mixed bucket is not the right tool for
+that -- it exists specifically to catch this case as a failure.
 
 Labels:
   empty             : prompt or response is empty/whitespace-only
@@ -38,7 +61,19 @@ Labels:
                        right script, wrong language. v0 heuristic, see
                        language.py's limitations; only fires when the
                        language.py signal is available (Latin-script
-                       responses to romanized/code-mixed prompts).
+                       responses to romanized/code-mixed prompts). KNOWN
+                       FALSE POSITIVE: a single incidental function-word
+                       match in the PROMPT is enough to trigger this
+                       bucket -- "Who directed Se7en?" contains "se"
+                       only because the digit splits the word, and "What
+                       is the ka in Egyptian belief?" contains "ka" as
+                       an ordinary English word. Both wrongly bucket as
+                       code-mixed and then fail a genuinely correct
+                       English response. Not fixed by requiring 2+ words
+                       (that breaks short, genuine Hinglish questions
+                       like this package's own "Mumbai kahan hai?"
+                       example, which has exactly one) -- an honest v0
+                       heuristic limitation, not a solved problem.
   no_script_signal  : response classify() == "mixed" only because it has
                        NO alphabetic characters in any recognized script
                        (e.g. emoji-only, CJK/Cyrillic-only, digits-only,

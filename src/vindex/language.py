@@ -21,7 +21,17 @@ v0 LIMITATIONS (read before trusting this for anything load-bearing):
   - Case-insensitive substring-of-words matching can still false-positive
     on English text that happens to contain one of these tokens as a
     stray word (e.g. proper nouns). One match is treated as a signal, not
-    proof.
+    proof -- but in metric.py's script_adherence, one match on the PROMPT
+    is enough to flip the whole prompt's bucket to code-mixed and then
+    hard-fail a genuinely correct English response as language_mismatch.
+    Verified real cases: "Who directed Se7en?" contains "se" only because
+    the digit splits the word into two alphabetic runs; "What is the ka
+    in Egyptian belief?" contains "ka" as an ordinary English word. A
+    stricter "require 2+ matches" rule was tried and reverted -- it also
+    breaks short, genuine Hinglish questions, including this package's
+    own README example ("Mumbai kahan hai?" has exactly one function
+    word). This is a real, unresolved trade-off of the v0 approach, not
+    a solved edge case.
   - Not ML-based, not a language-ID library (e.g. langdetect, fasttext).
     Those would do better on long, ambiguous, or low-function-word text.
     This exists to be dependency-free and auditable, not maximally
@@ -75,3 +85,13 @@ def looks_like_hinglish(text: str | None) -> bool:
     words are present." See the module docstring for limitations.
     """
     return len(find_hindi_function_words(text)) > 0
+
+
+# A stricter "2+ words" variant was tried and reverted (see
+# metric.py's language_mismatch docstring): it fixes the "Se7en"/"ka"
+# single-token false positive, but also breaks this package's own
+# canonical example ("Mumbai kahan hai?" has exactly one function
+# word, "hai") and any other short, genuine Hinglish question. The
+# false positive is a real, honest v0 heuristic limitation, not
+# something a simple threshold change can fix without breaking
+# legitimate short-sentence detection.

@@ -21,21 +21,22 @@ allow_muril=True to load it anyway (e.g. to reproduce or extend the
 calibration experiment itself).
 
 CACHING (Milestone 3.4): ported from experiments/scripts/
-encoder_cache.py, unchanged in on-disk layout and cache-key scheme
-(<repo_root>/encoder_cache/<sanitized_encoder_name>/<sha256(text)[:2]>/
-<sha256(text)>.npy, is_query folded into the hash) so a cache warmed by
-prior runs is reused, not invalidated, by calling this module --
+encoder_cache.py, same cache-key scheme
+(<cache_root>/<sanitized_encoder_name>/<sha256(text)[:2]>/
+<sha256(text)>.npy, is_query folded into the hash) so repeated calls
+with the same (encoder, text, is_query) reuse a cached embedding --
 nobody in this project has a GPU, and encoding is the slow part of
 every run.
 
-Note: encoder_cache.py's own CACHE_ROOT computes to
-experiments/encoder_cache/ (its own dirname math, one level short of
-repo root), but that directory does not exist on disk -- the actually-
-populated cache lives at <repo_root>/encoder_cache/, which
-encoder_comparison.py's real run wrote to directly (it does not import
-CachedEncoder at all). This module targets the real, populated
-location -- repo-root encoder_cache/ -- not encoder_cache.py's own
-(apparently unused) path formula.
+CACHE_ROOT LOCATION (fixed after a real bug -- see _default_cache_root's
+docstring): NOT a repo-relative path. It used to be computed as three
+dirname() hops from __file__, which resolves inside the Python install
+directory for anyone who `pip install`'d this package -- and
+os.makedirs() there raises PermissionError on any normal, non-root
+install. Now a real user cache directory: $VINDEX_CACHE_DIR if set,
+else the platform's standard cache location. A cache-write failure
+(e.g. read-only filesystem) degrades to no caching rather than
+crashing encode() -- see encode()'s try/except.
 """
 
 from __future__ import annotations
@@ -49,8 +50,34 @@ from vindex.calibration import MURIL_MODEL_NAME, MURIL_WARNING
 if TYPE_CHECKING:
     import numpy as np
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CACHE_ROOT = os.path.join(REPO_ROOT, "encoder_cache")
+def _default_cache_root() -> str:
+    """Platform-appropriate user cache directory for vindex's encoder
+    cache, honoring VINDEX_CACHE_DIR as an explicit override.
+
+    PACKAGING FIX (a real bug, not a style choice): this used to be
+    computed as three dirname() hops from __file__, resolving to
+    <repo_root>/encoder_cache/ -- which only exists in a git checkout.
+    In an installed package, that path resolves inside the Python
+    installation directory (e.g. site-packages' grandparent), and
+    encode()'s os.makedirs() call there raises PermissionError on any
+    normal (non-root/non-admin) install. Fixed to use a real user cache
+    directory: $VINDEX_CACHE_DIR if set, else $XDG_CACHE_HOME/vindex on
+    Linux/Mac, else ~/.cache/vindex, else (Windows, no XDG_CACHE_HOME)
+    %LOCALAPPDATA%/vindex/cache.
+    """
+    override = os.environ.get("VINDEX_CACHE_DIR")
+    if override:
+        return override
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        return os.path.join(xdg, "vindex")
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if os.name == "nt" and local_appdata:
+        return os.path.join(local_appdata, "vindex", "cache")
+    return os.path.join(os.path.expanduser("~"), ".cache", "vindex")
+
+
+CACHE_ROOT = _default_cache_root()
 
 E5_MODELS = frozenset({"intfloat/multilingual-e5-base"})
 RAW_TRANSFORMER_MODELS = frozenset({MURIL_MODEL_NAME})
@@ -165,10 +192,18 @@ class Encoder:
 
         self.cache_misses += 1
         vec = self._encode_uncached(text, is_query)
-        os.makedirs(d, exist_ok=True)
-        tmp_base = path[:-4] + ".tmp"
-        np.save(tmp_base, vec)
-        os.replace(tmp_base + ".npy", path)
+        try:
+            os.makedirs(d, exist_ok=True)
+            tmp_base = path[:-4] + ".tmp"
+            np.save(tmp_base, vec)
+            os.replace(tmp_base + ".npy", path)
+        except OSError:
+            # Cache directory not writable (e.g. a read-only filesystem,
+            # or a permissions issue not fixed by VINDEX_CACHE_DIR) --
+            # degrade to no caching rather than crash the whole encode
+            # call. The result is still correct, just not persisted for
+            # next time.
+            pass
         return vec
 
     def cache_stats(self) -> dict[str, float]:

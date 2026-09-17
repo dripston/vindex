@@ -139,9 +139,13 @@ prompt fixes it completely.
 | hinglish | 0.200                  | 1.000                 |
 
 Reproduced by `vindex.script_adherence` against the two source datasets
-in `experiments/scripts/validate_vindex_port.py` -- run it yourself:
+in `experiments/scripts/validate_vindex_port.py` -- run it yourself
+from a clone of the repo (not from a `pip install`'d copy: `experiments/`
+is deliberately not shipped in the package, see `experiments/README.md`):
 
 ```bash
+git clone https://github.com/dripston/vindex
+cd vindex
 python experiments/scripts/validate_vindex_port.py
 ```
 
@@ -159,7 +163,7 @@ don't assume a smaller/cheaper model "should be fine" for Indic judging
 without checking against your own data. And never use the same model
 (or family) as both judge and the model being judged.
 
-## The argument for calibrated_similarity
+## The argument for calibrated_similarity -- and where that argument runs out
 
 At the naive default of 0.5 cosine similarity, 11 of 15 (encoder,
 language) combinations in this package's own calibration data score at
@@ -167,23 +171,73 @@ or below 0.5 accuracy for correct-vs-wrong discrimination -- a coin
 flip does as well. Calibrated per (encoder, language), 10 of 15 clear
 0.6, and the best cell reaches 0.90.
 
-| encoder                          | language | accuracy @ 0.5 | calibrated | accuracy @ calibrated |
-|-----------------------------------|----------|----------------:|-----------:|------------------------:|
-| multilingual-e5-base               | en       | 0.500           | 0.878      | **0.900**               |
-| paraphrase-multilingual-mpnet-v2  | en       | 0.500           | 0.818      | 0.850                   |
-| paraphrase-multilingual-mpnet-v2  | hinglish | 0.700           | 0.412      | 0.800                   |
-| all-MiniLM-L6-v2                  | hinglish | 0.600           | 0.351      | 0.750                   |
-| LaBSE                             | hinglish | 0.650           | 0.423      | 0.750                   |
-| multilingual-e5-base               | hinglish | 0.500           | 0.845      | 0.750                   |
-| paraphrase-multilingual-mpnet-v2  | hi       | 0.474           | 0.871      | 0.737                   |
-| all-MiniLM-L6-v2                  | en       | 0.500           | 0.863      | 0.650                   |
-| all-MiniLM-L6-v2                  | hi       | 0.526           | 0.072      | 0.632                   |
-| multilingual-e5-base               | hi       | 0.474           | 0.880      | 0.632                   |
-| muril-base-cased                  | hinglish | 0.500           | 0.991      | 0.600                   |
-| LaBSE                             | en       | 0.500           | 0.553      | 0.500                   |
-| muril-base-cased                  | en       | 0.500           | 0.996      | 0.500                   |
-| LaBSE                             | hi       | 0.474           | 0.867      | 0.526                   |
-| muril-base-cased                  | hi       | 0.474           | 0.995      | 0.526                   |
+**But "calibrated accuracy" is the accuracy of a threshold chosen, by
+argmax sweep, on the SAME 10-19 points it's then scored on, with no
+holdout.** That number can only go up or stay flat relative to 0.5 --
+it is not independent evidence the encoder can actually discriminate.
+The column that IS threshold-independent is ROC AUC (correct vs
+wrong-hard, from `experiments/results_clean/discrimination_summary.csv`'s
+`roc_auc_hard` column) -- added below, since the original table didn't
+carry it and a careful outside review correctly flagged that omission.
+
+| encoder                          | language | AUC (threshold-free) | accuracy @ 0.5 | calibrated threshold | accuracy @ calibrated |
+|-----------------------------------|----------|----------------------:|----------------:|-----------:|------------------------:|
+| multilingual-e5-base               | en       | **0.878**             | 0.500           | 0.878      | **0.900**               |
+| paraphrase-multilingual-mpnet-v2  | en       | **0.818**             | 0.500           | 0.818      | 0.850                   |
+| paraphrase-multilingual-mpnet-v2  | hinglish | 0.412                 | 0.700           | 0.412      | 0.800                   |
+| all-MiniLM-L6-v2                  | hinglish | 0.351                 | 0.600           | 0.351      | 0.750                   |
+| LaBSE                             | hinglish | 0.423                 | 0.650           | 0.423      | 0.750                   |
+| multilingual-e5-base               | hinglish | **0.845**             | 0.500           | 0.845      | 0.750                   |
+| paraphrase-multilingual-mpnet-v2  | hi       | **0.871**             | 0.474           | 0.871      | 0.737                   |
+| all-MiniLM-L6-v2                  | en       | 0.863                 | 0.500           | 0.863      | 0.650                   |
+| all-MiniLM-L6-v2                  | hi       | 0.072 ⚠️               | 0.526           | 0.072      | 0.632                   |
+| multilingual-e5-base               | hi       | **0.880**             | 0.474           | 0.880      | 0.632                   |
+| muril-base-cased                  | hinglish | 0.991 ⚠️               | 0.500           | 0.991      | 0.600                   |
+| LaBSE                             | en       | 0.553 ⚠️               | 0.500           | 0.553      | 0.500                   |
+| muril-base-cased                  | en       | 0.996 ⚠️               | 0.500           | 0.996      | 0.500                   |
+| LaBSE                             | hi       | 0.867 ⚠️               | 0.474           | 0.867      | 0.526                   |
+| muril-base-cased                  | hi       | 0.995 ⚠️               | 0.474           | 0.995      | 0.526                   |
+
+⚠️ = AUC is misleading or degenerate for this cell (see below), even
+though "accuracy @ calibrated" looks fine or good. Bold AUC = genuine
+signal.
+
+**Read the ⚠️ rows carefully, they are not what the accuracy column
+implies:**
+- **MuRIL, all three languages, AUC 0.991-0.996**: this is NOT real
+  discrimination. MuRIL's raw scores are ~0.99 on nearly everything
+  regardless of correctness (see the MuRIL warning below) -- the AUC is
+  high here only because correct answers score fractionally higher
+  than wrong ones inside a near-constant ~0.99-0.999 band, not because
+  the encoder understands anything. `calibrated_similarity` raises
+  loudly by default for MuRIL specifically because of this.
+- **LaBSE/en, AUC 0.553**: barely above chance. Its "accuracy @
+  calibrated" of 0.500 already told you this; the AUC confirms there
+  is close to zero real signal to calibrate in the first place.
+- **LaBSE/hi, AUC 0.867 but negative separation** (`mean_correct <
+  mean_wrong_hard` in the raw CSV): high AUC and negative separation
+  together mean the ranking is right more often than not on this
+  10-case sample, but the margin is not measured as a clean, wide gap
+  -- treat this cell as fragile, not simply "0.867 good," until
+  validated on more data.
+- **all-MiniLM-L6-v2/hi, AUC 0.072**: this is not "no signal," it is
+  the encoder's ranking being *inverted* -- wrong answers scored higher
+  than correct ones more often than not on this sample. The shipped
+  threshold of 0.072 (chosen by argmax to route around the inversion)
+  passes nearly everything; do not read "accuracy @ calibrated = 0.632"
+  as this encoder having usable Hindi discrimination.
+
+**The honest summary**: of these 15 cells, 6 have real, above-chance,
+non-degenerate signal (bold AUC above) -- and of those 6, only 2 are
+strong (e5-base/en at 0.878, e5-base/hi at 0.880). The other 9,
+including several with a "good-looking" calibrated accuracy in the
+0.6-0.75 range, have AUC at or below chance, inverted, or driven by a
+near-constant-score encoder that cannot actually discriminate. A
+threshold fitted on 10-19 in-sample points and then evaluated on the
+same points will always look better than 0.5 by construction -- it is
+not, by itself, evidence the encoder works. Use `calibrate()` on your
+own held-out data, and check the AUC (or your own discrimination
+metric) before trusting any cell, shipped or self-calibrated.
 
 Full methodology, the "13 of 15" vs "11 of 15" note, and how to
 reproduce this table: `experiments/README.md`'s Milestone 3 section.
@@ -207,7 +261,16 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   hand-picked Hindi function words (`hai`, `hain`, `kya`, `nahi`, ...) in
   Romanized text. No transliteration-variant coverage, no verb
   conjugations, no other Romanized Indic languages, not ML-based. One
-  matching word is treated as a signal, not proof.
+  matching word is treated as a signal, not proof -- and one incidental
+  match in the PROMPT is enough to flip the whole prompt's bucket and
+  hard-fail a genuinely correct English response: `"Who directed Se7en?"`
+  contains `"se"` only because the digit splits the word, and
+  `"What is the ka in Egyptian belief?"` contains `"ka"` as an ordinary
+  English word -- both wrongly trigger `language_mismatch`. A stricter
+  "require 2+ matches" rule was tried and reverted: it also breaks short,
+  genuine Hinglish questions, including this README's own
+  `"Mumbai kahan hai?"` example above, which has exactly one function
+  word. Real, unresolved trade-off of the v0 approach.
 - **Devanagari's danda (।) is shared punctuation.** It lives in the
   Devanagari Unicode block but is reused as a sentence-ending mark in
   Bengali, Odia, Gurmukhi, and others, so a couple of stray
@@ -261,7 +324,16 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   threshold on your own labelled data. Only 3 languages (en, hi,
   hinglish) and 5 encoders are covered; any other combination falls
   back to an uncalibrated 0.5 threshold and says so plainly in the
-  result's `reason` and `detail["calibrated"]`.
+  result's `reason` and `detail["calibrated"]`. More specifically: of
+  the 15 shipped cells, only 6 have genuine above-chance discrimination
+  (measured by threshold-independent ROC AUC), and only 2 of those are
+  strong. The other 9 -- including several whose "accuracy @
+  calibrated" number looks like 0.6-0.75 -- have AUC at or below
+  chance, an inverted ranking, or come from an encoder (MuRIL) that
+  cannot discriminate at all. A calibrated-per-cell accuracy number is
+  not, by itself, evidence a cell has real signal; see the AUC column
+  in "The argument for calibrated_similarity" above before trusting any
+  shipped threshold.
 - **`calibrated_similarity` measures closeness, not correctness.** Two
   answers can be topically similar and still disagree on the actual
   fact -- this metric will not catch that. It also requires a gold

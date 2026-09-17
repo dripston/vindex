@@ -1,6 +1,6 @@
 [project]
 name = "vindex"
-version = "0.2.0"
+version = "0.2.1"
 description = "Evaluation metrics for Indic and code-mixed LLM output."
 readme = "README.md"
 license = { text = "MIT" }
@@ -47,6 +47,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+# Trap-word dictionary CSVs (Milestone 6.1) must ship inside the
+# installed package, not just live in the repo's data/ directory --
+# see trap_words.py's PACKAGING note for the real bug this fixes.
+vindex = ["data/trap_words/*.csv"]
 
 [tool.ruff]
 line-length = 100

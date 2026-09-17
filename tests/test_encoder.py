@@ -11,6 +11,7 @@ import os
 
 import pytest
 
+import vindex.encoder
 from vindex.calibration import MURIL_MODEL_NAME
 from vindex.encoder import CACHE_ROOT, Encoder, MurilWithoutOverrideError, _cache_path, _sanitize
 
@@ -46,12 +47,22 @@ def test_cache_path_under_cache_root() -> None:
     assert p.endswith(".npy")
 
 
-def test_cache_root_is_at_repo_root_not_experiments() -> None:
-    # Regression: encoder_cache.py's own CACHE_ROOT computes one level
-    # short of the actually-populated cache directory on disk. This
-    # module must target the real, populated location.
-    assert os.path.basename(CACHE_ROOT) == "encoder_cache"
-    assert os.path.basename(os.path.dirname(CACHE_ROOT)) != "experiments"
+def test_cache_root_is_not_relative_to_repo_or_install_path() -> None:
+    # Regression: CACHE_ROOT used to be computed as three dirname() hops
+    # from __file__, resolving to <repo_root>/encoder_cache/ in a git
+    # checkout -- but to somewhere inside the Python install directory
+    # (e.g. site-packages' grandparent) for an installed package, where
+    # os.makedirs() raises PermissionError on any normal install. Must
+    # be a real user cache directory instead, never inside this
+    # package's own install location.
+    package_dir = os.path.dirname(os.path.abspath(vindex.encoder.__file__))
+    assert not CACHE_ROOT.startswith(package_dir)
+    assert "vindex" in CACHE_ROOT.lower()
+
+
+def test_cache_root_honors_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VINDEX_CACHE_DIR", "/tmp/my-custom-vindex-cache")
+    assert vindex.encoder._default_cache_root() == "/tmp/my-custom-vindex-cache"
 
 
 # --- MuRIL guard ---
