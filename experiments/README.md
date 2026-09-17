@@ -240,13 +240,64 @@ judge exact-match shortcut (Milestone 5.4) measurably skips the LLM
 call entirely (0.0s) when `gold` matches `answer` exactly at the word
 level.
 
-**Milestone 5.8 (validate against human labels) is not done.** It
-needs a real annotation study -- human graders scoring the same cases
-this judge scores, per language, compared against an English-rubric
-baseline -- which has not been run. The above confirms the specific,
-documented Phase 0 failure doesn't recur; it is not a substitute for
-that study, and `indic_judge`'s docs say so explicitly rather than
-implying broader validation than exists.
+**Milestone 5.8 (validate against human labels, vs an English-rubric
+baseline) has been run, using the Milestone 6.3 data.** An
+English-rubric baseline judge (`vindex.judge_rubric_en_baseline`,
+structurally identical to `judge_rubric.py`'s Hindi rubric -- same
+instructions, same four few-shot examples including the समुद्र तल
+case translated, same JSON contract and conservative scoring
+threshold, only the rubric language differs) was run against the same
+62 pinned traces from the 6.3 study
+(`experiments/scripts/run_english_rubric_baseline.py`), then compared
+against the same two human graders' verdicts
+(`experiments/scripts/compute_english_baseline_agreement.py`).
+
+```
+--- ALL (62 traces) ---
+  grader1 vs indic_judge (Hindi rubric):   56/62 = 90.3%
+  grader1 vs english_baseline (En rubric): 58/62 = 93.5%
+  grader2 vs indic_judge (Hindi rubric):   56/62 = 90.3%
+  grader2 vs english_baseline (En rubric): 58/62 = 93.5%
+```
+
+**Honest result: the English-rubric baseline agreed with humans
+slightly MORE than `indic_judge`'s Hindi rubric on this set** --
+93.5% (58/62) vs 90.3% (56/62). This is the opposite of the motivating
+hypothesis from Phase 0 (that a Hindi rubric avoids the समुद्र तल-style
+mistranslation an English-reasoning judge is prone to), and it is
+reported as-is, not adjusted or re-run to get a different answer.
+
+The 4 traces where the two judges disagree (T023 डाक, T025 गुरु, T033
+चारा, T051 निकासी, all `answer_type=correct`) are not the English
+judge catching a Hindi misread, or the reverse -- inspecting the raw
+reasoning shows `indic_judge` being **more conservative about
+completeness**, not less accurate about comprehension: in 3 of the 4
+cases (T023, T025, T051) the Hindi rubric's own chain-of-thought
+correctly identifies the answer as factually right, then flags it
+anyway for omitting a secondary detail the question didn't explicitly
+ask for (e.g. T023: the answer correctly says a sealed envelope and
+registration fee must be submitted for registered mail, and the Hindi
+judge's reasoning agrees this is correct, but flags it for not also
+mentioning ordinary postage). The English-rubric run and both human
+graders accepted the same answers as correct. Only T033 goes the other
+direction (Hindi rubric passes, English rubric flags the same kind of
+completeness gap).
+
+**What this does and doesn't show.** It doesn't show the Hindi rubric
+is worse at comprehension -- zero of the 4 disagreements involve a
+mistranslation or a misread; all 4 are the conservative-completeness
+behavior that Milestone 5.5 deliberately built in, just triggering
+slightly more often under the Hindi rubric's phrasing than the English
+one's. It does show that "a Hindi rubric agrees with humans more than
+an English one" was, until this run, an assumption motivated by one
+qualitative Phase 0 incident, not a demonstrated result -- and on this
+62-trace sample, the measured direction is the opposite. Small sample,
+4 disagreements total -- not strong evidence either way about which
+rubric is better in general, but real evidence against treating the
+Hindi-rubric choice as already validated by agreement numbers.
+Disclosure per `docs/annotation/BIAS_PROTOCOL.md` applies identically
+here: the human grades being compared against are the same ones from
+the 6.3 study, graded by the project owner and one independent grader.
 
 ## Milestone 6: judge_trace_check catches the error class it was built for, with a real 70-entry dictionary
 

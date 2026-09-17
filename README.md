@@ -250,13 +250,24 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   `vindex.calibration.MURIL_WARNING` for the HindiWiC citation this is
   based on. It is the encoder an Indian-language project reaches for
   first, and the one that fails hardest.
-- **`indic_judge` vs an English-rubric baseline is still open.** The
-  Milestone 6.3 study below validates `indic_judge`'s verdict against
-  human graders in isolation (90.3% agreement); it does not yet compare
-  that number against an English-rubric judge on the same 62 traces, so
-  the specific claim "the Hindi rubric agrees with humans more than an
-  English one would" is not yet measured, only motivated by the Phase 0
-  qualitative finding (see `experiments/FINDINGS.md`).
+- **`indic_judge` vs an English-rubric baseline (Milestone 5.8): the
+  English rubric agreed with humans slightly MORE, not less, on this
+  62-trace set.** 93.5% (58/62) for an English-rubric baseline vs
+  90.3% (56/62) for `indic_judge`'s Hindi rubric, same traces, same
+  human grades. This is the opposite of the motivating hypothesis
+  (Phase 0's समुद्र तल mistranslation finding), and it is reported
+  as-is rather than adjusted. The 4 disagreements are not the judge
+  misreading Hindi -- inspecting them shows `indic_judge` being
+  *more conservative about completeness*: 3 of 4 flag a substantively
+  correct answer for omitting a secondary detail (e.g. not mentioning
+  postage alongside the envelope and registration fee), which the
+  English-rubric run and the human graders both accepted as correct.
+  Only 1 of 4 goes the other way. Small sample (62 traces, 4
+  disagreements) -- not strong evidence the Hindi rubric is worse in
+  general, but it is real evidence that "Hindi rubric > English
+  rubric" was an assumption, not yet a demonstrated result, on this
+  data. See `experiments/README.md` for the full breakdown and the
+  raw per-trace reasoning.
 - **`indic_judge` is non-deterministic in the sense that matters: it
   calls a hosted LLM.** Temperature is fixed at 0 and the judge model
   is version-pinned and recorded in every result's

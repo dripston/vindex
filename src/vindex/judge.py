@@ -72,12 +72,17 @@ competence on Indic content is not uniform across models and degrades
 with model size, so a specific recommendation is more honest than an
 unexamined default.
 
-MILESTONE 5.8 (validate against human labels): NOT covered by this
-module. It needs a real annotation study (human graders scoring the
-same cases this judge scores, per language, compared against an
-English-rubric baseline) that has not been run. Do not present this
-module's scores as validated against human judgment until that study
-exists -- see the module-level TODO at the bottom of this file.
+MILESTONE 5.8 (validate against human labels, vs an English-rubric
+baseline): run, using the Milestone 6.3 annotation data. Result: an
+English-rubric baseline agreed with the same human graders slightly
+MORE than this module's Hindi rubric on that 62-trace set (93.5% vs
+90.3%) -- the opposite of this module's motivating hypothesis.
+Inspection of the disagreements shows this module being more
+conservative about answer completeness, not less accurate about
+comprehension (see experiments/README.md's Milestone 5.8 section for
+the full breakdown). Do not present the Hindi rubric as validated to
+agree with humans better than an English one on this evidence; that
+specific claim did not hold on this sample.
 """
 
 from __future__ import annotations
@@ -106,8 +111,10 @@ Judge model selection is not a solved default -- pick deliberately:
   capability. Do not assume a smaller/cheaper model "should be fine"
   for Indic judging just because it performs adequately on English
   tasks -- verify against your own labelled data (see judge_align's
-  cost-bounding, and Milestone 5.8's human-agreement validation, not
-  yet run).
+  cost-bounding, and Milestone 5.8's human-agreement validation:
+  93.5% for an English rubric vs 90.3% for this module's Hindi
+  rubric on the same 62 traces, so rubric language alone is not a
+  substitute for checking your own data either).
 - NEVER use the same model (or a model from the same family/provider
   fine-tune lineage) as both the model being judged and the judge
   itself -- self-enhancement bias is a documented effect, not a
@@ -271,7 +278,8 @@ def indic_judge(
     return MetricResult(score=score, passed=passed, label=label, reason=reason, detail=detail)
 
 
-# MILESTONE 5.8 (not implemented): validate against human labels --
-# needs a real annotation study (human graders on the same cases,
-# per-language agreement, compared against an English-rubric
-# baseline). See this module's docstring.
+# MILESTONE 5.8 (done): validate against human labels, vs an
+# English-rubric baseline. See this module's docstring and
+# experiments/README.md for the result -- the English-rubric baseline
+# agreed with humans slightly more than this module's Hindi rubric on
+# the 6.3 study's 62 traces (93.5% vs 90.3%).

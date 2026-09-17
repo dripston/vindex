@@ -22,6 +22,18 @@ instructs the judge to reason in Hindi when the content is in Hindi --
 so there is no translation step for an error to hide inside. This is
 the mechanism, not a preference.
 
+MILESTONE 5.8 UPDATE -- this mechanism fixes the specific incident
+above, but does not, on its own, mean this rubric out-agrees a human
+grader more than an English one would in general. Tested directly: an
+English-rubric baseline agreed with the same human graders slightly
+MORE than this Hindi rubric on the Milestone 6.3 study's 62 traces
+(93.5% vs 90.3%). The 4 disagreements were not mistranslation in
+either direction -- they were this rubric being more conservative
+about answer completeness (see judge.py's docstring and
+experiments/README.md). Keep the mechanism argument above for the one
+documented failure it targets; don't cite it as proof of a general
+agreement advantage that this project's own data doesn't show.
+
 FEW-SHOT EXAMPLES (Milestone 5.1)
 
 Hindi worked examples below, one of which is the समुद्र तल case itself
