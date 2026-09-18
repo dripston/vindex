@@ -6,6 +6,35 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+def coerce_text(value: Any) -> str:
+    """Coerce a metric's text input to a string: `None` and any
+    non-string value both become "" (treated the same as an empty
+    string by every metric's own empty-input handling), a real string
+    passes through unchanged.
+
+    FIXED (a real bug, found by an independent outside review): every
+    metric's own text arguments were typed `str | None` and coerced
+    with a plain `value or ""`, which only handles `None` and the
+    empty string -- any OTHER falsy-adjacent-looking non-string value
+    passed straight through uncoerced. `float("nan")` is truthy in
+    Python (only 0.0/None/""/etc. are falsy), so `float("nan") or ""`
+    returns `float("nan")` unchanged, and the first `.strip()` call
+    inside the metric crashed with `AttributeError: 'float' object has
+    no attribute 'strip'`. This is exactly the shape pandas produces
+    for an empty cell (`df["column"]` puts `nan`, not `None` or `""`,
+    in a blank row) -- a real, likely input for an eval library called
+    from a dataframe, not a contrived type-violation test. A
+    non-string, non-None value is not a valid text input either way,
+    so it is treated the same as an empty string rather than crashing
+    -- this is consistent with the label="empty" path every metric
+    already has for an actually-empty string."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return ""
+
+
 @dataclass(frozen=True, slots=True)
 class MetricResult:
     """The output of running one metric on one (prompt, response) pair.

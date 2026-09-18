@@ -407,8 +407,8 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   call is a real LLM call -- there is no free shortcut for the
   recommended mode. This is inherent to reference-free judging, not a
   missed optimization.
-- **`check_trace`'s dictionary has 70 entries, hand-reviewed, not
-  exhaustive.** `data/trap_words/hindiwic_inventory.csv` (60
+- **`check_trace`'s dictionary has 69 entries, hand-reviewed, not
+  exhaustive.** `data/trap_words/hindiwic_inventory.csv` (59
   HindiWiC-sourced polysemous Hindi nouns) and
   `data/trap_words/own_additions.csv` (15 hand-authored terms:
   misleading compounds, tense-flip time adverbs, fractional numbers,
@@ -420,8 +420,26 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   should not, automate). 5 of the 60 HindiWiC words (तेल, धन, डब्बा,
   संबंध, थान) were deliberately left blank -- no realistically
   confusable wrong reading exists for them, so they're excluded rather
-  than forced into a weak pair. Grows from user reports going forward,
-  per Milestone 6.2.
+  than forced into a weak pair. A 6th, उत्तर (north/answer), was
+  removed after being filled in (found by an independent outside
+  review): this library evaluates question-answering, and उत्तर
+  meaning "answer" is correct in that context far more often than
+  "north" -- the reading_a/reading_b assignment was backwards for the
+  library's own primary use case, and no single assignment is right
+  for both senses, so it was removed rather than shipped either way.
+  Grows from user reports going forward, per Milestone 6.2.
+  **A further, separate limitation, also found by that review: every
+  gloss in the dictionary is ASCII English.** `judge_rubric.py`
+  instructs the judge to reason in Hindi and not translate to English
+  while thinking -- so a Hindi-language reasoning trace can never
+  trigger `check_trace` at all, regardless of whether it misread
+  anything, since there is no English gloss to match against. This
+  means `check_trace`'s effective N is 0 on the trace language
+  `indic_judge`'s own recommended (Hindi-rubric) configuration
+  produces, even though `detail["dictionary_size"]` reports 69.
+  `check_trace`/`indic_judge` do not currently compose safely for this
+  reason; treat any `check_trace` result on a Hindi-language trace as
+  uninformative, not as confirmation nothing was misread.
 - **`check_trace` only catches mistranslation of a term already in the
   dictionary.** By design (Milestone 6.2's honest claim: "detects
   mistranslation of N known ambiguous terms," never "detects
@@ -451,21 +469,33 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   actually followed the scoring contract. Fixed: any score outside 1-5
   now raises and surfaces as `label="judge_error"`, the same as every
   other malformed judge response.
-- **`check_trace`/`indic_judge` human-agreement study (Milestone 6.3):
-  62 traces (31 trap words x correct/wrong answer), graded
-  independently by two fluent Hindi speakers under a bias protocol
+- **`indic_judge` human-agreement study (Milestone 6.3): 62 traces (31
+  trap words x correct/wrong answer), graded independently by two
+  fluent Hindi speakers under a bias protocol**
   (`docs/annotation/BIAS_PROTOCOL.md`: ground truth committed before
   grading, blind sheet, frozen rubric, 30% holdout, no cross-visibility
-  until both submitted). Result: **90.3% agreement (56/62) between
-  human graders and `indic_judge`'s own verdict**, 100% inter-annotator
-  agreement between the two humans, no meaningful gap between the
-  tuning set (88.4%) and the untouched 30% holdout (94.7%) -- no sign
-  of grading drift. Disclosure required by the protocol: one of the
-  two graders is the project owner, who also built the metric being
-  evaluated; the second grader is an independent fluent Hindi speaker
-  with no stake in the result. Do not cite the 90.3% figure without
-  this disclosure next to it. All disagreement was on the same small
-  set of traces the judge itself flags as conservative-by-design (a
-  correct answer marked "flagged" over an edge-case nuance, not a
-  missed mistranslation) -- see `docs/annotation/BIAS_PROTOCOL.md` for
-  the full breakdown and raw numbers.
+  until both submitted). **This is a study of `indic_judge`'s verdict
+  agreement with humans, NOT a precision/recall study of `check_trace`**
+  -- an earlier version of this bullet was headed "`check_trace`/
+  `indic_judge`", which was wrong (found by an independent outside
+  review): `BIAS_PROTOCOL.md`'s own comparison is explicitly "each
+  grader's verdict vs. `indic_judge`'s own [verdict]"; `check_trace`
+  was never part of this comparison, despite using the same 62 trap-
+  word-derived traces as source material. No precision/recall study of
+  `check_trace` itself has been run -- see `judge_trace_check.py`'s
+  module docstring's MILESTONE 6.3 section, which is still accurate:
+  that work has not happened. Result of the actual `indic_judge` study:
+  **90.3% agreement (56/62) between human graders and `indic_judge`'s
+  own verdict**, 100% inter-annotator agreement between the two
+  humans, no meaningful gap between the tuning set (88.4%) and the
+  untouched 30% holdout (94.7%) -- no sign of grading drift. Disclosure
+  required by the protocol: one of the two graders is the project
+  owner, who also built the metric being evaluated; the second grader
+  is an independent fluent Hindi speaker with no stake in the result.
+  Do not cite the 90.3% figure without this disclosure next to it, and
+  do not cite it as evidence about `check_trace`. All disagreement was
+  on the same small set of traces the judge itself flags as
+  conservative-by-design (a correct answer marked "flagged" over an
+  edge-case nuance, not a missed mistranslation) -- see
+  `docs/annotation/BIAS_PROTOCOL.md` for the full breakdown and raw
+  numbers.

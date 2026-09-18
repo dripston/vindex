@@ -93,7 +93,7 @@ import re
 from vindex.judge_align import align
 from vindex.judge_model import GroqJudge, JudgeModel
 from vindex.judge_rubric import build_reference_based_prompt, build_reference_free_prompt
-from vindex.result import MetricResult
+from vindex.result import MetricResult, coerce_text
 
 JUDGE_SELECTION_GUIDANCE = """
 Judge model selection is not a solved default -- pick deliberately:
@@ -126,19 +126,97 @@ Judge model selection is not a solved default -- pick deliberately:
 _MAX_SCORE = 5
 
 
+def _iter_balanced_objects(text: str) -> list[str]:
+    """Find every balanced {...} span in `text`, in order, by brace
+    counting -- correctly skipping over braces inside string literals
+    so a `{` or `}` in a quoted value doesn't miscount. One candidate
+    per top-level `{` found (nested objects are captured as part of
+    their enclosing span, not separately)."""
+    candidates = []
+    i = 0
+    while i < len(text):
+        if text[i] != "{":
+            i += 1
+            continue
+        start = i
+        depth = 0
+        in_string = False
+        escape = False
+        j = start
+        while j < len(text):
+            c = text[j]
+            if in_string:
+                if escape:
+                    escape = False
+                elif c == "\\":
+                    escape = True
+                elif c == '"':
+                    in_string = False
+                j += 1
+                continue
+            if c == '"':
+                in_string = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    candidates.append(text[start : j + 1])
+                    break
+            j += 1
+        i = start + 1
+    return candidates
+
+
 def _extract_json(text: str) -> str:
+    """Extract the JSON object from a judge's raw text response.
+
+    FIXED (a real bug, found by an independent outside review): this
+    used to be `re.search(r"\\{.*\\}", text, re.DOTALL)` -- greedy, so
+    it grabbed from the FIRST `{` to the LAST `}` in the whole text,
+    not a real JSON object. A judge response that mentions any brace in
+    its prose before its actual JSON answer (e.g. "Reasoning: use
+    {a:1}. Final: {"score":5,...}") got the entire span from the first
+    brace to the last one, including the prose text glued in the
+    middle -- not valid JSON, so the whole response was thrown away as
+    judge_error instead of parsing the real object that was there.
+
+    Now: find every balanced {...} span (brace-counted, string-literal-
+    aware) and return the first one that is ACTUALLY valid JSON, not
+    just the first one that is balanced -- "{a:1}" in the example above
+    is balanced but not valid JSON (unquoted key), so it is skipped in
+    favor of the real object that follows. Falls back to the raw text
+    if no candidate parses, so a genuinely malformed response still
+    reaches json.loads() and raises there, same as before."""
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(json)?", "", text).rsplit("```", 1)[0]
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    return match.group(0) if match else text
+    for candidate in _iter_balanced_objects(text):
+        try:
+            json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        return candidate
+    return text
 
 
-def _parse_judge_response(raw: str) -> tuple[float, str, str]:
+def _parse_judge_response(raw: str) -> tuple[float, str, str, str]:
     """Parse the judge's JSON response into (score in [0,1], reasoning,
-    confidence). Raises ValueError on a malformed response -- callers
-    should treat that as a failed judge call, not silently default to
-    a score.
+    confidence, raw_confidence). Raises ValueError on a malformed
+    response -- callers should treat that as a failed judge call, not
+    silently default to a score.
+
+    confidence is the normalized value used for the pass/fail gate --
+    "high" or "low" only, with anything else (e.g. "medium", a typo, a
+    language other than English) folded into "low" as the safe
+    default. raw_confidence is exactly what the judge sent, unmodified
+    (added after an independent outside review found that when a judge
+    sent "medium", the normalized "low" silently overwrote it
+    everywhere, including in `detail` -- so the audit trail claimed the
+    judge said "low" when it actually said "medium", misrepresenting
+    what happened even though the conservative low-confidence
+    *behavior* was correct). Report both: use `confidence` for gating
+    logic, `raw_confidence` for anything a human or a log will read.
 
     A score outside the rubric's documented 1-5 range is ALSO malformed
     and raises ValueError, rather than being clamped into range. The
@@ -152,7 +230,22 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str]:
     worse than raising and surfacing it as judge_error the way every
     other malformed shape already is."""
     data = json.loads(_extract_json(raw))
-    score_value = float(data["score"])
+    raw_score_field = data["score"]
+    if isinstance(raw_score_field, bool):
+        # FIXED (a real bug, found by an independent outside review):
+        # bool is a subclass of int in Python, so float(True) == 1.0
+        # and float(False) == 0.0 both succeed silently. {"score":
+        # true} used to be accepted as score=1 (passing the 1-5 range
+        # check as the lowest valid score) and {"score": false} was
+        # accepted as score=0 (correctly rejected by the range check,
+        # but only by accident -- 0 happens to be out of [1,5], not
+        # because a bool was recognized as an invalid type). A judge
+        # emitting a boolean for "score" has not followed the
+        # documented contract any more than a string or a list would
+        # have -- reject explicitly, consistent with every other
+        # malformed shape degrading to judge_error.
+        raise ValueError(f"score {raw_score_field!r} is a boolean, not a number")
+    score_value = float(raw_score_field)
     try:
         raw_score = int(round(score_value))
     except (OverflowError, ValueError) as exc:
@@ -170,10 +263,11 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str]:
         raise ValueError(f"score {raw_score!r} is outside the documented 1-{_MAX_SCORE} range")
     normalized_score = (raw_score - 1) / (_MAX_SCORE - 1)
     reasoning = str(data.get("reasoning", ""))
-    confidence = str(data.get("confidence", "low")).lower()
+    raw_confidence = str(data.get("confidence", "low"))
+    confidence = raw_confidence.lower()
     if confidence not in ("high", "low"):
         confidence = "low"
-    return normalized_score, reasoning, confidence
+    return normalized_score, reasoning, confidence, raw_confidence
 
 
 def _family(model_id: str) -> str:
@@ -198,7 +292,27 @@ def _family(model_id: str) -> str:
     Only a same-repo, same-naming-convention, different-SIZE variant is
     reliably caught. Treat this warning as a narrow, best-effort catch
     for one specific naming pattern, not a general same-family
-    detector."""
+    detector.
+
+    MISSES THE MOST COMMON REAL PAIRING (found by an independent
+    outside review): "gpt-4o" vs "gpt-4o-mini" -- almost certainly the
+    single most common self-judging pair in production today -- is NOT
+    caught. Splitting "gpt-4o-mini" on "-" gives ["gpt", "4o", "mini"];
+    the trailing token "mini" is not a bare size digit, so this
+    function returns the model_id unchanged instead of stripping
+    anything, and "gpt-4o" (unchanged) != "gpt-4o-mini" (unchanged).
+    Same for "llama-3.1-70b-instruct" vs "llama-3.1-8b-instruct" (a
+    trailing "-instruct" suffix after the size token blocks the strip
+    the same way the docstring above already describes for other
+    suffixes). A reliable general fix needs an actual model-family
+    lookup table or a smarter naming-convention parser, not a
+    marginally-smarter regex -- a fragile pattern expansion that still
+    misses the next naming convention would give a false sense that
+    this check is more complete than it is, which is worse than the
+    current, honestly-narrow state. Not attempted here for that
+    reason; `detail`'s absence of a self-enhancement warning must never
+    be read as "safe from self-enhancement bias" -- verify your own
+    judge/answering-model pairing directly."""
     parts = model_id.split("-")
     if len(parts) > 1 and parts[-1].rstrip("bm").isdigit():
         return "-".join(parts[:-1])
@@ -247,8 +361,8 @@ def indic_judge(
     silently treated as a pass. Better a false alarm than a silent
     pass on a wrong answer in a banking flow.
     """
-    question = question or ""
-    answer = answer or ""
+    question = coerce_text(question)
+    answer = coerce_text(answer)
 
     if question.strip() == "" or answer.strip() == "":
         return MetricResult(
@@ -261,6 +375,13 @@ def indic_judge(
 
     judge = judge or GroqJudge()
     family_warning = _warn_if_same_family(judge.model_id, answering_model_id)
+
+    if gold is not None and not isinstance(gold, str):
+        # A non-string, non-None gold (e.g. a pandas nan in a dataframe
+        # cell) would crash on gold.strip() below -- treat it the same
+        # as gold=None (reference-free mode) rather than crash, same
+        # fix as coerce_text applies to question/answer above.
+        gold = None
 
     if gold is not None and gold.strip() != "":
         alignment = align(answer, gold)
@@ -290,7 +411,7 @@ def indic_judge(
 
     raw_response = judge.call(prompt)
     try:
-        score, reasoning, confidence = _parse_judge_response(raw_response)
+        score, reasoning, confidence, raw_confidence = _parse_judge_response(raw_response)
     except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         return MetricResult(
             score=0.0,
@@ -314,6 +435,12 @@ def indic_judge(
         "confidence": confidence,
         "judge_reasoning": reasoning,
     }
+    if raw_confidence.lower() != confidence:
+        # The judge sent something other than exactly "high"/"low"
+        # (e.g. "medium") -- report what it actually said alongside the
+        # normalized value used for gating, instead of silently
+        # overwriting it (see _parse_judge_response's docstring).
+        detail["raw_confidence"] = raw_confidence
     if family_warning:
         detail["self_enhancement_bias_warning"] = family_warning
 

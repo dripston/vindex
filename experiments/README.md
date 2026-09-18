@@ -312,7 +312,7 @@ Disclosure per `docs/annotation/BIAS_PROTOCOL.md` applies identically
 here: the human grades being compared against are the same ones from
 the 6.3 study, graded by the project owner and one independent grader.
 
-## Milestone 6: judge_trace_check catches the error class it was built for, with a real 70-entry dictionary
+## Milestone 6: judge_trace_check catches the error class it was built for, with a real 69-entry dictionary
 
 `src/vindex/judge_trace_check.py`'s `check_trace()` is the mechanism
 Minakshi named as the worrying one: the समुद्र तल error happens inside
@@ -323,24 +323,51 @@ against the real dictionary (not an injected fixture): the exact
 floor" for "sea level"; a trace that reads it correctly passes; a
 trace that mentions both readings while correctly reasoning through
 the ambiguity is correctly NOT flagged (a judge working through an
-ambiguity is not the same as a judge misreading one). The उत्तर
-("north" vs "answer") case from BUILD_PLAN.md 6.1 was also tested and
-correctly caught. See `tests/test_judge_trace_check.py` and
-`tests/test_trap_words.py`.
+ambiguity is not the same as a judge misreading one). See
+`tests/test_judge_trace_check.py` and `tests/test_trap_words.py`.
 
-**The shipped dictionary (`data/trap_words/`) has 70 usable entries.**
-60 HindiWiC words plus 15 hand-authored terms (misleading compounds,
-tense-flip time adverbs, fractional numbers, Indian large-number
-words), with `suggested_reading_a`/`suggested_reading_b` filled in by
-hand -- per BUILD_PLAN.md 6.1's instruction that this is the project
-owner's own work, not something to automate ("about an hour, and it's
-your work, not your agent's"). In practice: drafted with help from a
-Hindi-fluent LLM (Sarvam's chatbot, fed the real inventory CSV) for
-speed, then reviewed before committing -- disclosed here, not silently
-presented as unassisted manual work. 5 of the 60 HindiWiC words (तेल,
-धन, डब्बा, संबंध, थान) were marked "no good trap" and left blank on
-purpose; their secondary senses aren't realistically confusable enough
-to be worth a forced pair.
+**The उत्तर ("north" vs "answer") case from BUILD_PLAN.md 6.1 was
+REMOVED from the dictionary in v0.3.0** (found by an independent
+outside review, after this section originally reported it as
+"correctly caught"): `check_trace()` evaluates question-answering, and
+उत्तर meaning "answer" is correct in that context far more often than
+"north" -- but the entry had reading_a="north" (treated as correct)
+and reading_b="answer" (treated as a mistranslation to flag), so a
+trace correctly saying "the answer is X" for a Hindi question
+containing उत्तर was flagged as a misread. There is no single
+reading_a/reading_b assignment that is right for both "उत्तर की ओर"
+(north) and "सही उत्तर" (the correct answer) -- removed rather than
+shipped either way. The original "correctly caught" framing above was
+itself the bug: the test that passed was testing for the wrong
+behavior. See CHANGELOG.md's v0.3.0 entry and
+`tests/test_trap_words.py`'s `test_load_trap_words_does_not_include_uttar`.
+
+**The shipped dictionary (`data/trap_words/`) has 69 usable entries**
+(70 before उत्तर's removal). 59 HindiWiC words plus 15 hand-authored
+terms (misleading compounds, tense-flip time adverbs, fractional
+numbers, Indian large-number words), with
+`suggested_reading_a`/`suggested_reading_b` filled in by hand -- per
+BUILD_PLAN.md 6.1's instruction that this is the project owner's own
+work, not something to automate ("about an hour, and it's your work,
+not your agent's"). In practice: drafted with help from a Hindi-fluent
+LLM (Sarvam's chatbot, fed the real inventory CSV) for speed, then
+reviewed before committing -- disclosed here, not silently presented
+as unassisted manual work. 5 of the 60 HindiWiC words (तेल, धन, डब्बा,
+संबंध, थान) were marked "no good trap" and left blank on purpose;
+their secondary senses aren't realistically confusable enough to be
+worth a forced pair.
+
+**Every gloss in the dictionary is ASCII English** (found by the same
+outside review): `judge_rubric.py` instructs the judge to reason in
+Hindi when the source content is Hindi, so a Hindi-language judge
+trace can never trigger `check_trace` at all, regardless of whether it
+actually misread anything -- there is no English gloss for
+`_contains_gloss` to match against. `check_trace`'s effective N is 0
+on the trace language `indic_judge`'s own recommended (Hindi-rubric)
+configuration produces, even though `detail["dictionary_size"]`
+correctly reports 69. Treat any `check_trace` result on a
+Hindi-language trace as uninformative, not as confirmation nothing was
+misread.
 
 **One real bug found and fixed during this fill-in.** The first draft
 used "ocean floor (seabed)" for समुद्र तल's reading_b -- a real

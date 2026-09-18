@@ -205,3 +205,18 @@ def test_calibrate_good_separation_does_not_warn_at_or_below_chance() -> None:
 def test_calibrate_clean_fit_has_no_warnings() -> None:
     result = calibrate([0.9, 0.85, 0.8, 0.75, 0.7], [0.3, 0.25, 0.2, 0.15, 0.1])
     assert result.warnings == ()
+
+
+def test_calibrate_nan_in_correct_scores_raises() -> None:
+    # Regression: a NaN in similarities_correct used to be silently
+    # treated as always "wrong" (s >= threshold is False for any
+    # threshold when s is NaN), with no warning -- the out-of-[-1,1]
+    # range check couldn't catch it either (nan < -1.0 and nan > 1.0
+    # are both False).
+    with pytest.raises(ValueError, match="NaN"):
+        calibrate([float("nan"), 0.9], [0.1, 0.2])
+
+
+def test_calibrate_nan_in_wrong_scores_raises() -> None:
+    with pytest.raises(ValueError, match="NaN"):
+        calibrate([0.9, 0.8], [float("nan"), 0.2])

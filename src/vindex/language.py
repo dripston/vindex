@@ -9,7 +9,7 @@ function words spelled in Roman letters?
 
 v0 LIMITATIONS (read before trusting this for anything load-bearing):
   - Fixed, hand-picked word list. No coverage of Hindi verb conjugations,
-    postpositions, or vocabulary beyond the ~16 function words below.
+    postpositions, or vocabulary beyond the 14 function words below.
   - No handling of transliteration variants (e.g. "nahin" vs "nahi", "hen"
     vs "hain"). A word not spelled exactly as listed is invisible to this
     detector.

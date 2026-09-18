@@ -50,14 +50,43 @@ THE HONEST CLAIM (Milestone 6.2): this module detects mistranslation
 of the N known ambiguous terms in vindex.trap_words.load_trap_words()
 -- not "detects mistranslation" in general. N is exactly the number of
 human-reviewed trap-word entries that currently exist (see
-trap_words.py; as of this module's writing, N=0, since the dictionary
-CSVs ship with their reading columns blank). Report N honestly
+trap_words.py) -- 69 as of this writing (was 70; उत्तर was removed
+after an independent outside review found its reading_a/reading_b
+assignment was backwards for this library's own QA-evaluation use
+case, see trap_words.py's module docstring). Report N honestly
 alongside any result -- see check_trace()'s detail payload, which
 always includes dictionary_size. A judge_trace_check result that finds
 nothing wrong on a trace containing a mistranslation OUTSIDE the
 dictionary is not a false negative of this tool; it is outside this
 tool's stated scope. Grow the dictionary from user reports, not from
 trying to anticipate every possible ambiguous term up front.
+
+REAL N IS SMALLER STILL FOR HINDI-LANGUAGE TRACES (found by an
+independent outside review): every reading_a/reading_b gloss in the
+dictionary is ASCII English (verified: zero entries have any
+non-ASCII gloss). judge_rubric.py's own prompt instructs the judge, in
+bold Hindi, to reason IN Hindi and not translate to English while
+thinking -- so a trace produced by following that instruction can
+never trigger this check at all, regardless of whether it actually
+misread anything: _contains_gloss has nothing to match against in a
+Hindi-language trace. `dictionary_size` in every result still reports
+69 in this situation, which is honest about the dictionary's size but
+not about this check's effective N of 0 on that trace's language.
+check_trace() does not currently detect or flag this "trace language
+made this check structurally unable to fire" case -- treat a
+`no_misread_detected` result on a Hindi-language trace with real
+skepticism, not as confirmation nothing was misread.
+
+MILESTONE 6.3/6.5 STATUS -- READ BEFORE CITING ANY NUMBER FOR THIS
+MODULE SPECIFICALLY: the 90.3%/93.5% agreement numbers reported in
+README.md's Limitations section and experiments/README.md are
+indic_judge's verdict agreement with human graders (Milestone 5's
+study) -- NOT a precision/recall study of check_trace(). No such study
+of check_trace() has been run; see the MILESTONE 6.3 paragraph below,
+which remains true and unimplemented. If a passage anywhere appears to
+attribute the 90.3% figure to check_trace, that is a documentation
+error, not a second, contradicting result -- the 5.x study numbers are
+the only real numbers that exist.
 
 OPTIONAL LLM FALLBACK (Milestone 6.4): for mistranslation categories
 the dictionary structurally cannot catch (a term not yet in the
@@ -83,11 +112,67 @@ what MUST happen before any precision/recall number (6.5) is published.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from vindex.judge_align import align
 from vindex.judge_model import JudgeModel
-from vindex.result import MetricResult
+from vindex.result import MetricResult, coerce_text
 from vindex.trap_words import TrapWord, load_trap_words
+
+
+def _is_devanagari_word_continuer(c: str) -> bool:
+    """True if `c` is a Devanagari letter or combining mark -- i.e. it
+    continues the same word as an adjacent Devanagari character, with
+    no real word boundary between them. Used by _term_present_as_word
+    to find real word boundaries in Devanagari text, where Python's
+    regex `\\b` (built on `\\w`) does NOT work correctly:
+      - `\\w` treats combining marks (matras, virama) as word
+        characters with no boundary before them, so
+        `re.search(r"\\bदर\\b", "चादर")` wrongly matches -- there is no
+        `\\w`-boundary between "चा" and "दर", even though चादर is one
+        word and दर is a different, unrelated word.
+      - Consecutive Devanagari CONSONANT letters with no vowel sign
+        between them are also still one word (Devanagari has no
+        letter-to-letter space the way Latin does) -- कलम is one word,
+        क+ल+म, not "क" + a boundary + "लम". A check that only excluded
+        combining marks (an earlier draft of this fix) still wrongly
+        matched "कल" inside "कलम", because "म" is an ordinary letter,
+        not a combining mark, and was wrongly treated as a boundary.
+    So this must exclude BOTH combining marks AND ordinary Devanagari
+    letters immediately adjacent to a candidate match -- only a
+    non-Devanagari character (space, punctuation, Latin, or the string
+    boundary) counts as a real word boundary."""
+    if not c:
+        return False
+    if not ("ऀ" <= c <= "ॿ"):
+        return False
+    category = unicodedata.category(c)
+    return category in ("Lo", "Lm", "Mn", "Mc")  # letters + combining marks
+
+
+def _term_present_as_word(term: str, source: str) -> bool:
+    """True if `term` appears in `source` as a real word, not as a
+    substring inside a longer word.
+
+    FIXED (a real bug, found by an independent outside review): this
+    used to be a plain `term in source` substring test with no
+    boundary check at all -- so कल (term, "tomorrow"/"yesterday")
+    matched inside कलम ("pen"), दर ("rate"/"door") matched inside
+    चादर ("bedsheet"), and मूल ("root"/"principal") matched inside
+    मूल्य ("price"). The gloss side of this check (see _contains_gloss)
+    got a word-boundary fix already; the source side never did, and a
+    plain `\\b` regex boundary does not work correctly for Devanagari
+    (see _is_devanagari_word_continuer's docstring) -- so this checks
+    the character immediately before and after each match manually
+    instead."""
+    idx = source.find(term)
+    while idx != -1:
+        before = source[idx - 1] if idx > 0 else ""
+        after = source[idx + len(term)] if idx + len(term) < len(source) else ""
+        if not _is_devanagari_word_continuer(before) and not _is_devanagari_word_continuer(after):
+            return True
+        idx = source.find(term, idx + 1)
+    return False
 
 
 def _primary_gloss(reading: str) -> str:
@@ -179,8 +264,8 @@ def check_trace(
     No LLM call. Deterministic: the same (source, trace, trap_words)
     always produces the same result.
     """
-    source = source or ""
-    trace = trace or ""
+    source = coerce_text(source)
+    trace = coerce_text(trace)
     words = trap_words if trap_words is not None else load_trap_words()
 
     if source.strip() == "" or trace.strip() == "":
@@ -194,7 +279,7 @@ def check_trace(
 
     flagged_terms = []
     for word in words:
-        if word.term not in source:
+        if not _term_present_as_word(word.term, source):
             continue
         if _trace_says_wrong_reading(trace, word):
             flagged_terms.append(

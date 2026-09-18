@@ -20,16 +20,60 @@ from vindex.judge import _family, _parse_judge_response
 
 def test_parse_judge_response_valid_score_in_range() -> None:
     raw = json.dumps({"score": 5, "confidence": "high", "reasoning": "correct"})
-    score, reasoning, confidence = _parse_judge_response(raw)
+    score, reasoning, confidence, raw_confidence = _parse_judge_response(raw)
     assert score == 1.0
     assert confidence == "high"
+    assert raw_confidence == "high"
     assert reasoning == "correct"
 
 
 def test_parse_judge_response_score_at_low_end_of_range() -> None:
     raw = json.dumps({"score": 1, "confidence": "low", "reasoning": "wrong"})
-    score, _, _ = _parse_judge_response(raw)
+    score, _, _, _ = _parse_judge_response(raw)
     assert score == 0.0
+
+
+def test_parse_judge_response_medium_confidence_normalizes_to_low_but_reports_raw() -> None:
+    # Regression: a judge sending "medium" (not "high"/"low") used to
+    # have its raw value silently overwritten by the normalized "low"
+    # everywhere, including where a caller might report it -- so the
+    # audit trail claimed the judge said "low" when it actually said
+    # "medium". The normalized value used for gating is still "low"
+    # (the safe default), but raw_confidence must report what was
+    # actually sent.
+    raw = json.dumps({"score": 5, "confidence": "medium", "reasoning": "x"})
+    _, _, confidence, raw_confidence = _parse_judge_response(raw)
+    assert confidence == "low"
+    assert raw_confidence == "medium"
+
+
+def test_parse_judge_response_boolean_score_raises() -> None:
+    # Regression: bool is a subclass of int in Python, so
+    # float(True) == 1.0 succeeded silently and {"score": true} was
+    # accepted as a valid score of 1.
+    raw = '{"score": true, "confidence": "high", "reasoning": "x"}'
+    with pytest.raises(ValueError):
+        _parse_judge_response(raw)
+
+
+def test_parse_judge_response_false_boolean_score_raises() -> None:
+    raw = '{"score": false, "confidence": "high", "reasoning": "x"}'
+    with pytest.raises(ValueError):
+        _parse_judge_response(raw)
+
+
+def test_parse_judge_response_prose_before_json_extracts_correctly() -> None:
+    # Regression: _extract_json used to greedily match from the FIRST
+    # "{" to the LAST "}" in the whole response. A judge response that
+    # mentions any brace in prose before its real JSON answer used to
+    # have the prose glued into the "JSON" and fail to parse.
+    raw = (
+        'Reasoning: use {a:1}. Final answer: '
+        '{"score": 5, "confidence": "high", "reasoning": "ok"}'
+    )
+    score, reasoning, confidence, _ = _parse_judge_response(raw)
+    assert score == 1.0
+    assert confidence == "high"
 
 
 def test_parse_judge_response_out_of_range_score_raises_not_clamps() -> None:
@@ -92,3 +136,16 @@ def test_family_finetune_suffix_is_not_stripped_known_limitation() -> None:
     # "-instruct") is not stripped either, so a fine-tune of the same
     # base model is treated as a different family.
     assert _family("llama-3.1-70b") != _family("llama-3.1-70b-instruct")
+
+
+def test_family_gpt4o_mini_pairing_is_not_caught_known_limitation() -> None:
+    # KNOWN LIMITATION (found by an independent outside review, see
+    # _family's docstring's "MISSES THE MOST COMMON REAL PAIRING"
+    # paragraph): "gpt-4o" vs "gpt-4o-mini" is not caught -- "mini" is
+    # not a bare size digit, so neither name gets stripped, and this is
+    # probably the single most common self-judging pair in production.
+    assert _family("gpt-4o") != _family("gpt-4o-mini")
+
+
+def test_family_instruct_suffix_after_size_token_is_not_caught_known_limitation() -> None:
+    assert _family("llama-3.1-70b-instruct") != _family("llama-3.1-8b-instruct")

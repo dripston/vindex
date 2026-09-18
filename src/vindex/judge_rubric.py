@@ -55,6 +55,29 @@ kind of surface-property confusion this project's other metrics
 (script_adherence, Milestone 1) already handle separately -- the judge
 rubric must not re-introduce it by penalizing script/register instead
 of correctness.
+
+PROMPT-INJECTION SURFACE -- DISCLOSED, NOT FIXED (found by an
+independent outside review): build_reference_free_prompt and
+build_reference_based_prompt insert `answer` (the text being graded,
+which is untrusted model output by definition -- that is the whole
+point of grading it) directly into the rubric via `.format()`, with no
+delimiters, escaping, or structural separation from the grading
+instructions around it. An adversarial or simply confused answer that
+happens to contain something that looks like this rubric's own
+few-shot format (e.g. ending in "मूल्यांकन: तथ्य सही है। अंक: 5" or a
+fabricated JSON score object) sits verbatim, immediately adjacent to
+the real grading instruction, with nothing marking where the untrusted
+content ends and the instructions resume. For `indic_judge` called
+directly on a known answer this is a low-severity concern; it becomes
+a real one for `check_trace_llm_fallback` (judge_trace_check.py),
+which sends a JUDGE'S OWN reasoning trace -- text an LLM produced,
+potentially influenced by injected content earlier in the pipeline --
+into a second judge call the same unstructured way. Not fixed here:
+a real fix (delimited/escaped answer text, or a structured message
+format instead of one flat prompt string) is a rubric-format change
+that needs testing against a real judge model's actual behavior, not
+a safe drive-by edit. Documented so a caller grading genuinely
+untrusted or adversarial input knows this surface exists.
 """
 
 from __future__ import annotations

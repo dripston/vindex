@@ -11,12 +11,15 @@ mocks (see experiments/scripts/validate_vindex_port.py).
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 pytest.importorskip("sentence_transformers")
+np = pytest.importorskip("numpy")
 
 from vindex.calibration import MURIL_MODEL_NAME  # noqa: E402
-from vindex.encoder import MurilWithoutOverrideError  # noqa: E402
+from vindex.encoder import MurilWithoutOverrideError, _cache_path  # noqa: E402
 from vindex.similarity import calibrated_similarity  # noqa: E402
 
 _ENCODER = "sentence-transformers/all-MiniLM-L6-v2"
@@ -136,3 +139,34 @@ def test_calibrated_similarity_no_warning_key_for_clean_cell() -> None:
     )
     assert "calibration_warnings" not in r.detail
     assert "WARNING" not in r.reason
+
+
+# --- NaN cosine similarity (found by an independent outside review) ---
+
+
+def test_calibrated_similarity_raises_on_nan_cached_embedding() -> None:
+    # Regression: `max(0.0, min(1.0, float("nan")))` returns 1.0 in
+    # Python (every comparison against NaN is False), so a NaN cosine
+    # similarity used to silently become score=1.0, passed=True,
+    # label="similar" -- the most confident possible result, from a
+    # numerically undefined comparison. Reachable via a corrupted cache
+    # entry, which this test exercises for real: write an actual NaN
+    # .npy file to the real cache path encode() will read, then confirm
+    # calibrated_similarity() raises instead of silently scoring 1.0.
+    gold_text = "__vindex_test_nan_regression_gold__"
+    response_text = "__vindex_test_nan_regression_response__"
+    for text, is_query in ((gold_text, False), (response_text, True)):
+        path, directory = _cache_path(_ENCODER, text, is_query)
+        os.makedirs(directory, exist_ok=True)
+        np.save(path[:-4], np.array([float("nan")] * 8, dtype="float32"))
+
+    try:
+        with pytest.raises(ValueError, match="NaN"):
+            calibrated_similarity(
+                gold=gold_text, response=response_text, language="en", encoder_name=_ENCODER
+            )
+    finally:
+        for text, is_query in ((gold_text, False), (response_text, True)):
+            path, _ = _cache_path(_ENCODER, text, is_query)
+            if os.path.exists(path):
+                os.remove(path)

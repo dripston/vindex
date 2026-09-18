@@ -28,6 +28,25 @@ with the same (encoder, text, is_query) reuse a cached embedding --
 nobody in this project has a GPU, and encoding is the slow part of
 every run.
 
+KNOWN LIMITATION -- CACHE KEY HAS NO MODEL REVISION (found by an
+independent outside review): the cache key is derived only from the
+encoder's mutable HuggingFace repo name (e.g.
+"sentence-transformers/paraphrase-multilingual-mpnet-base-v2"), not a
+pinned revision/commit hash. `judge_model.py`'s judge models are
+version-pinned and their exact `judge_model_id` recorded in every
+result specifically so scores stay comparable across time -- the
+embedding cache has no equivalent protection. If a HuggingFace repo
+is ever updated in place under the same name (weights changed, no name
+bump), a stale cached embedding from the old weights is silently
+reused instead of being recomputed, and `calibration.CALIBRATION_TABLE`'s
+thresholds (fit against the OLD weights) would then be compared against
+embeddings from different, new weights with nothing surfacing the
+mismatch. Not fixed here -- would need `Encoder.load()` to record and
+key on the resolved model revision, which sentence-transformers/
+transformers expose but this module does not currently request. If you
+need long-term reproducibility guarantees, set `$VINDEX_CACHE_DIR` to a
+fresh directory whenever you pin a specific model revision yourself.
+
 CACHE_ROOT LOCATION (fixed after a real bug -- see _default_cache_root's
 docstring): NOT a repo-relative path. It used to be computed as three
 dirname() hops from __file__, which resolves inside the Python install

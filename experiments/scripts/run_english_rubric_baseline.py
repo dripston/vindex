@@ -45,7 +45,7 @@ def main() -> None:
         prompt = build_reference_free_prompt_en_baseline(t["question"], t["answer"])
         raw = judge.call(prompt)
         try:
-            score, reasoning, confidence = _parse_judge_response(raw)
+            score, reasoning, confidence, _raw_confidence = _parse_judge_response(raw)
             passed = confidence == "high" and score >= 0.8
         except Exception as exc:  # noqa: BLE001 -- record the failure, don't crash the run
             score, reasoning, confidence, passed = 0.0, f"PARSE_ERROR: {exc}", "low", False

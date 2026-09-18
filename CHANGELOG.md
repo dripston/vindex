@@ -1,5 +1,106 @@
 # Changelog
 
+## v0.3.0
+
+**Fixes and one dictionary correction found by a fourth independent
+outside review** (installed 0.2.3, read all ~3000 lines of source and
+the full README, ran five adversarial batteries against all four
+public functions):
+
+- **`check_trace`'s उत्तर entry was backwards for this library's own
+  primary use case.** reading_a="north" (treated as correct),
+  reading_b="answer" (treated as a mistranslation to flag) -- but this
+  library evaluates question-answering, where उत्तर meaning "answer"
+  is correct far more often than "north." A judge trace correctly
+  saying "the answer is X" for a Hindi question containing उत्तर was
+  flagged as a misread 100% of the time. Removed from the dictionary
+  (69 entries now, not 70) rather than shipped with either polarity,
+  since no single reading_a/reading_b assignment is right for both
+  "उत्तर की ओर" (north) and "सही उत्तर" (the correct answer).
+- **`check_trace`'s source-side term matching had no word boundary at
+  all.** `word.term not in source` was a raw substring test -- कल
+  matched inside कलम ("pen"), दर matched inside चादर ("bedsheet"), मूल
+  matched inside मूल्य ("price"). The gloss side already had a
+  word-boundary fix (v0.2.2); the source side never did, and a plain
+  regex `\b` boundary does not work correctly for Devanagari (matras
+  and the virama are `\w` characters with no boundary before them, and
+  consecutive consonant letters with no vowel sign between them are
+  still one word). Fixed with a character-position-based boundary
+  check instead of regex.
+- **Two documentation bugs in `check_trace`'s own docstring and the
+  README, now corrected:** a stale "N=0, dictionary ships blank"
+  sentence left in after the dictionary was actually filled in
+  (contradicting the "25 of 70 entries" paragraph two sections later
+  in the same file); and a README bullet headed
+  "`check_trace`/`indic_judge` human-agreement study" whose 90.3%
+  result is actually `indic_judge`-only -- `docs/annotation/BIAS_PROTOCOL.md`'s
+  own comparison is explicitly "each grader's verdict vs.
+  `indic_judge`'s own [verdict]"; `check_trace` was never part of that
+  study despite using the same 62 traces as source material. No
+  precision/recall study of `check_trace` itself has been run.
+  **Also newly documented (not previously disclosed): every dictionary
+  gloss is ASCII English, and `judge_rubric.py` instructs the judge to
+  reason in Hindi -- so a Hindi-language judge trace can never trigger
+  `check_trace` at all,** regardless of whether it misread anything.
+  `check_trace`/`indic_judge` do not currently compose safely on
+  `indic_judge`'s own recommended (Hindi-rubric) output for this
+  reason.
+- **`calibrated_similarity` silently returned `score=1.0, passed=True`
+  for a NaN cosine similarity.** `max(0.0, min(1.0, float("nan")))`
+  returns `1.0` in Python (every comparison against NaN is False), so
+  a corrupted embedding (e.g. a bad cached `.npy` file, fp16 overflow)
+  produced the single most confident possible result from a
+  numerically undefined comparison. Fixed: raises `ValueError`
+  instead. `calibrate()` had the matching hole -- a NaN silently
+  behaved as "always wrong" with no warning, and the out-of-[-1,1]
+  range check couldn't catch it (`nan < -1.0` and `nan > 1.0` are both
+  False) -- now raises immediately on any NaN input.
+- **`indic_judge`'s parser silently accepted a boolean `score`.** `bool`
+  is a subclass of `int` in Python, so `float(True) == 1.0` succeeded;
+  `{"score": true}` was accepted as a valid score of 1. Now rejected
+  explicitly as malformed, consistent with every other invalid shape.
+- **`_extract_json` used a greedy regex** (`\{.*\}` with DOTALL), so a
+  judge response mentioning any brace in prose before its real JSON
+  answer had the prose glued into the "JSON" and failed to parse.
+  Rewritten to find every balanced `{...}` span (brace-counted,
+  string-literal-aware) and return the first one that is actually
+  valid JSON.
+- **A judge sending `confidence: "medium"` had its raw value silently
+  overwritten by the normalized `"low"` everywhere, including in
+  `detail`** -- so the audit trail claimed the judge said "low" when
+  it said "medium" (the conservative low-confidence *behavior* was
+  correct; only the reporting was wrong). `_parse_judge_response` now
+  returns both the normalized confidence (used for gating) and the
+  raw value (for `detail["raw_confidence"]` when they differ).
+- **A non-string, non-`None` text argument crashed every metric.**
+  `script_adherence(float("nan"), "x")` raised `AttributeError:
+  'float' object has no attribute 'strip'` -- pandas puts `nan`, not
+  `None` or `""`, in an empty dataframe cell, and `nan` is truthy in
+  Python so the existing `value or ""` coercion didn't catch it. Added
+  `vindex.result.coerce_text()`, used by `script_adherence`,
+  `check_trace`, `calibrated_similarity`, and `indic_judge` -- a
+  non-string, non-`None` value now degrades to `label="empty"` like a
+  genuinely empty string, instead of crashing.
+- **`_family`'s same-model self-enhancement check misses the most
+  common real pairing.** "gpt-4o" vs "gpt-4o-mini" -- probably the
+  single most common self-judging pair in production -- is not caught
+  ("mini" is not a bare size digit, so neither name gets stripped).
+  Documented as a known limitation rather than patched with a fragile
+  pattern expansion that would still miss the next naming convention.
+- Smaller documentation fixes: `language.py` said "~16 function
+  words," there are 14 (matches what the README already said);
+  `_encoder_instances` (similarity.py) and the embedding cache key
+  (encoder.py) both now document real, disclosed limitations
+  (unbounded process-lifetime growth; no model-revision pinning);
+  `judge_rubric.py` now discloses the prompt-injection surface from
+  formatting untrusted answer text directly into the grading prompt
+  with no delimiters.
+- Checked and found NOT reproducing: the same review's claim that the
+  README's own `language_mismatch` examples ("Se7en", "ka in Egyptian
+  belief") don't actually trigger the failure they're describing. Both
+  examples, and three additional ones the review proposed, all
+  reproduce exactly as documented -- verified directly, no change made.
+
 ## v0.2.3
 
 **Fixes found by a third independent outside review** (installed 0.2.2

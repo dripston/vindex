@@ -19,11 +19,15 @@ def test_load_trap_words_returns_list() -> None:
 
 
 def test_load_trap_words_has_entries() -> None:
-    # The dictionary was filled in (Milestone 6.1) -- 70 of 75 rows
-    # have both readings (5 HindiWiC words were marked "no good trap"
-    # and left blank on purpose, e.g. तेल, धन, डब्बा, संबंध, थान).
+    # The dictionary was filled in (Milestone 6.1) -- 70 of 75 rows had
+    # both readings (5 HindiWiC words were marked "no good trap" and
+    # left blank on purpose, e.g. तेल, धन, डब्बा, संबंध, थान). Now 69:
+    # उत्तर (north/answer) was removed after an independent outside
+    # review found its reading_a/reading_b assignment was backwards for
+    # this library's own primary use case -- see
+    # test_load_trap_words_does_not_include_uttar below.
     words = load_trap_words()
-    assert len(words) == 70
+    assert len(words) == 69
 
 
 def test_load_trap_words_includes_the_documented_samudra_tal_case() -> None:
@@ -39,13 +43,22 @@ def test_load_trap_words_includes_the_documented_samudra_tal_case() -> None:
     assert samudra_tal.source == "own"
 
 
-def test_load_trap_words_includes_the_documented_uttar_case() -> None:
-    # उत्तर (north vs answer) is the other case BUILD_PLAN.md 6.1
-    # names directly.
+def test_load_trap_words_does_not_include_uttar() -> None:
+    # उत्तर (north/answer) was REMOVED from the dictionary (found by an
+    # independent outside review): this library evaluates
+    # question-answering, and उत्तर meaning "answer" is correct in that
+    # context far more often than "north" -- but the dictionary had
+    # reading_a="north" (treated as correct) and reading_b="answer"
+    # (treated as a mistranslation to flag), so a judge trace correctly
+    # saying "the answer is X" for a Hindi question containing उत्तर
+    # got flagged as a misread. There is no single reading_a/reading_b
+    # assignment that is right for both "उत्तर की ओर" (north) and
+    # "सही उत्तर" (the correct answer) -- removed rather than shipped
+    # wrong either way. BUILD_PLAN.md 6.1 named this as one of two
+    # documented example cases; it is intentionally no longer one.
     words = load_trap_words()
-    uttar = next(w for w in words if w.term == "उत्तर")
-    assert uttar.reading_a == "north"
-    assert uttar.reading_b == "answer"
+    terms = {w.term for w in words}
+    assert "उत्तर" not in terms
 
 
 def test_load_trap_words_skips_no_good_trap_rows() -> None:

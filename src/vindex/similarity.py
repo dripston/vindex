@@ -59,12 +59,23 @@ only catches the most degenerate cells.
 
 from __future__ import annotations
 
+import math
+
 from vindex.calibration import DEFAULT_ENCODER, get_threshold
 from vindex.encoder import Encoder, cosine_similarity
-from vindex.result import MetricResult
+from vindex.result import MetricResult, coerce_text
 
 _KNOWN_LANGUAGES = frozenset({"en", "hi", "hinglish"})
 
+# Process-lifetime cache, never evicted (found by an independent
+# outside review). Deliberate for the common case -- reloading a
+# multi-GB sentence-transformers model on every call would be far
+# worse -- but means calling calibrated_similarity() across all 5
+# calibrated encoders in one process keeps all 5 loaded simultaneously
+# for the rest of that process's life. If you need to bound memory
+# (e.g. benchmarking many encoders in one script), call
+# `vindex.similarity._encoder_instances.clear()` between encoders, or
+# run each encoder in its own subprocess.
 _encoder_instances: dict[tuple[str, bool], Encoder] = {}
 
 
@@ -97,8 +108,8 @@ def calibrated_similarity(
     `reason` and `detail` -- it does not silently pretend to be
     calibrated when it isn't.
     """
-    gold = gold or ""
-    response = response or ""
+    gold = coerce_text(gold)
+    response = coerce_text(response)
 
     if gold.strip() == "" or response.strip() == "":
         return MetricResult(
@@ -120,6 +131,29 @@ def calibrated_similarity(
     gold_vec = encoder.encode(gold, is_query=False)
     response_vec = encoder.encode(response, is_query=True)
     score = cosine_similarity(gold_vec, response_vec)
+    if math.isnan(score):
+        # FIXED (a real bug, found by an independent outside review):
+        # `max(0.0, min(1.0, float("nan")))` returns 1.0 in Python, not
+        # nan -- min()/max() compare left-to-right and every comparison
+        # against NaN is False, so the clamp below silently turned a
+        # NaN cosine similarity into the highest possible score
+        # (score=1.0, passed=True, label="similar" -- the single most
+        # confident result this metric can produce, from a
+        # numerically-undefined comparison). Reachable from a NaN in
+        # the embedding itself (e.g. fp16 overflow) or from
+        # encoder.py's on-disk cache, which loads a cached .npy file
+        # with no validation of its contents. Raising here rather than
+        # silently returning some other score, since a NaN similarity
+        # means something upstream is actually broken (a bad cached
+        # embedding, a broken encoder) and that should not be masked as
+        # a normal metric result.
+        raise ValueError(
+            f"cosine similarity between gold and response was NaN for encoder "
+            f"{encoder_name!r} -- this indicates a corrupted embedding (e.g. a "
+            "bad cached .npy file, or fp16 overflow), not a valid similarity "
+            "score. Clear the encoder cache (see vindex.encoder.CACHE_ROOT) and "
+            "retry."
+        )
     score = max(0.0, min(1.0, score))
 
     try:

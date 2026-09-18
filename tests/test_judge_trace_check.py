@@ -1,11 +1,13 @@
 """
 Tests for vindex.judge_trace_check (Milestone 6). check_trace() (6.1)
 is pure, deterministic, offline logic -- tested mostly with injected
-TrapWord fixtures (the समुद्र तल and उत्तर cases from this project's
-own documented findings) so the logic tests don't depend on the real
-dictionary's exact size or content, plus a handful of tests against
-the real, now-filled-in dictionary (see test_trap_words.py) to confirm
-the loader and checker actually agree on real data.
+TrapWord fixtures (समुद्र तल from this project's own documented Phase 0
+finding, plus a synthetic उत्तर fixture -- see _UTTAR's own comment
+below for why उत्तर is injected here but no longer in the real
+dictionary) so the logic tests don't depend on the real dictionary's
+exact size or content, plus a handful of tests against the real,
+now-filled-in dictionary (see test_trap_words.py) to confirm the
+loader and checker actually agree on real data.
 check_trace_llm_fallback() (6.4) needs a real Groq call; skipped if
 GROQ_API_KEY isn't set, matching test_judge.py's convention.
 """
@@ -20,6 +22,15 @@ from vindex.judge_trace_check import check_trace
 from vindex.trap_words import TrapWord
 
 _SAMUDRA_TAL = TrapWord(term="समुद्र तल", reading_a="sea level", reading_b="sea floor", source="own")
+# Injected fixture ONLY -- उत्तर was REMOVED from the real dictionary
+# (see test_trap_words.py's test_load_trap_words_does_not_include_uttar):
+# this exact north/answer pairing was found to be backwards for this
+# library's own primary use case (question-answering), since उत्तर
+# meaning "answer" is correct far more often than "north" in that
+# context. Kept here only as a fixture for tests that exercise
+# check_trace's general MECHANISM (word-boundary matching, gloss
+# suppression) using a real, illustrative ambiguous word -- not as a
+# claim that this reading_a/reading_b assignment should ever ship.
 _UTTAR = TrapWord(term="उत्तर", reading_a="north", reading_b="answer", source="hindiwic")
 
 # --- check_trace: empty / validation ---
@@ -201,14 +212,23 @@ def test_check_trace_real_dictionary_catches_samudra_tal() -> None:
     trace = "The judge mistranslated this as sea floor, so the boiling point is above 100 C."
     r = check_trace(source, trace)  # uses the real, loaded dictionary
     assert r.label == "misread_detected"
-    assert r.detail["dictionary_size"] == 70
+    # 69, not 70: उत्तर (north/answer) was removed from the real
+    # dictionary -- see test_trap_words.py's
+    # test_load_trap_words_does_not_include_uttar for why.
+    assert r.detail["dictionary_size"] == 69
 
 
-def test_check_trace_real_dictionary_catches_uttar() -> None:
+def test_check_trace_real_dictionary_no_longer_flags_uttar_as_answer() -> None:
+    # Regression: उत्तर (north/answer) was REMOVED from the real
+    # dictionary (found by an independent outside review) -- a Hindi
+    # question containing उत्तर, answered correctly in English using
+    # the word "answer", must no longer be flagged. This is the
+    # opposite assertion of what this test checked before the entry
+    # was removed.
     source = "दिल्ली से उत्तर की ओर कौन सा राज्य है?"
     trace = "The question is asking for an answer, so I need to provide a response."
     r = check_trace(source, trace)
-    assert r.label == "misread_detected"
+    assert r.label == "no_misread_detected"
 
 
 # --- check_trace_llm_fallback (Milestone 6.4): needs a real Groq call ---

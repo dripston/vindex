@@ -45,6 +45,7 @@ encoder x language -> (threshold, accuracy_at_threshold, accuracy_at_0.5)
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 MURIL_MODEL_NAME = "google/muril-base-cased"
@@ -247,11 +248,11 @@ def calibrate(
     real fit, and `calibrate([0.1, 0.2], [0.9, 0.8])`, an inverted
     input where "correct" scores are lower than "wrong" scores,
     returned a threshold with no indication anything was backwards):
-    this still ALWAYS returns a CalibratedThreshold -- it does not
-    raise on any input shape it previously accepted, since refusing to
-    fit at all would be worse for a caller with genuinely small
-    real-world data. Instead, non-fatal problems are surfaced in the
-    returned `.warnings` tuple:
+    this still ALWAYS returns a CalibratedThreshold for any structurally
+    valid input -- it does not raise just because a fit looks bad,
+    since refusing to fit at all would be worse for a caller with
+    genuinely small real-world data. Instead, non-fatal problems are
+    surfaced in the returned `.warnings` tuple:
       - fewer than 5 cases on either side ("too few cases to trust
         this fit").
       - similarities outside cosine similarity's valid [-1, 1] range
@@ -264,11 +265,30 @@ def calibrate(
     Always check `.warnings` before trusting a threshold from a small
     or unfamiliar dataset; an empty tuple means none of these specific
     checks fired, not that the fit is necessarily good.
+
+    NaN IS DIFFERENT -- IT RAISES, NOT A WARNING (found by an
+    independent outside review): `calibrate([float("nan"), 0.9], [0.1,
+    0.2])` used to silently behave as if the NaN entry did not exist
+    (`s >= threshold` is False for any threshold when `s` is NaN, so a
+    NaN in similarities_correct is treated as always "wrong" without
+    comment), and the out-of-[-1,1]-range check could not catch it
+    either (`nan < -1.0` and `nan > 1.0` are both False). A NaN
+    similarity score is not "a low score" or "an out-of-range score"
+    that a warning can meaningfully describe -- it means something
+    upstream is broken (a corrupted embedding, a bad cache read), so
+    this raises immediately rather than silently fitting around it.
     """
     if not similarities_correct or not similarities_wrong:
         raise ValueError(
             "calibrate() needs at least one correct and one wrong "
             "similarity score to fit a threshold."
+        )
+    if any(math.isnan(s) for s in similarities_correct + similarities_wrong):
+        raise ValueError(
+            "calibrate() received a NaN similarity score -- this indicates "
+            "corrupted input (e.g. a bad cached embedding or fp16 overflow "
+            "upstream), not a valid similarity to fit against. Remove NaN "
+            "entries and investigate their source before calibrating."
         )
 
     n = len(similarities_correct) + len(similarities_wrong)

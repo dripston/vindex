@@ -96,7 +96,7 @@ from __future__ import annotations
 import unicodedata
 
 from vindex.language import looks_like_hinglish
-from vindex.result import MetricResult
+from vindex.result import MetricResult, coerce_text
 from vindex.script import SCRIPT_RANGES, classify, count_scripts, is_only_danda_punctuation
 
 _INDIC_SCRIPTS = frozenset(SCRIPT_RANGES)
@@ -182,8 +182,8 @@ def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
     No reference answer needed -- this checks a property of the response
     itself (and its relation to the prompt), not response correctness.
     """
-    prompt = prompt or ""
-    response = response or ""
+    prompt = coerce_text(prompt)
+    response = coerce_text(response)
 
     prompt_label = classify(prompt)
     response_label = classify(response)

@@ -4,7 +4,6 @@ target_word,n_instances,n_distinct_senses,split_presence,in_test_only,suggested_
 तिल,916,3,train+test,False,sesame seed,mole (dark spot on skin),strong,
 वर्ग,674,6,val+test,False,class (category),square,strong,
 दर,614,2,train+test,False,rate,door,strong,
-उत्तर,451,3,train+test,False,north,answer,strong,
 मूल,427,10,val+test,False,root,principal (capital sum),strong,
 विधि,397,1,val+test,False,method,law (statute),strong,
 धारा,391,13,val+test,False,stream (current of water),clause (legal section),strong,
