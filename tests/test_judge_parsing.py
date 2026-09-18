@@ -14,6 +14,7 @@ import json
 import pytest
 
 from vindex.judge import _family, _parse_judge_response, indic_judge
+from vindex.judge_align import align
 
 # --- _parse_judge_response: out-of-range score ---
 
@@ -204,3 +205,37 @@ def test_indic_judge_reference_free_mode_still_requires_api_key(
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     with pytest.raises(ValueError, match="API key"):
         indic_judge("भारत की राजधानी क्या है?", "नई दिल्ली")
+
+
+# --- align(): case sensitivity (found and documented, not changed, by
+# an independent outside review) ---
+
+
+def test_align_is_case_sensitive_known_behavior() -> None:
+    # Documented, deliberate: "Same Answer" vs "same answer" is NOT
+    # aligned=True, so it does not qualify for the free exact-match
+    # short-circuit and instead falls through to a real judge call.
+    # See align()'s docstring for why case is left unnormalized while
+    # whitespace is.
+    result = align("Same Answer", "same answer")
+    assert result.aligned is False
+
+
+def test_align_whitespace_differences_are_normalized() -> None:
+    # Unlike case, whitespace differences ARE normalized (via .split())
+    # -- this is the contrast the case-sensitivity docstring note draws.
+    result = align("same  answer", "same answer")
+    assert result.aligned is True
+
+
+def test_indic_judge_case_mismatch_gold_falls_through_to_judge_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Consequence of align()'s case sensitivity: a gold/answer pair
+    # that differs only in case does not qualify for the free
+    # exact-match short-circuit, so it requires a real judge call (and
+    # therefore an API key) even though a case-insensitive comparison
+    # would have called them equal.
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="API key"):
+        indic_judge("भारत की राजधानी क्या है?", "New Delhi", gold="new delhi")

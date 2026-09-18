@@ -99,7 +99,13 @@ Romanized Hindi is not an error, and it is reference-free by default
 because a gold reference measurably masks comprehension drift in this
 project's own data. Pass `gold=` for reference-based mode, which runs
 align-then-judge first (Sarvam's shape): an exact match with `gold`
-skips the LLM call entirely.
+skips the LLM call entirely -- including the API key requirement
+(fixed in v0.4.0: this used to construct and validate a judge before
+checking for an exact match, so a caller with no `GROQ_API_KEY` got a
+`ValueError` even when the answer matched `gold` exactly). The match
+is exact at the word level after whitespace normalization, but
+case-sensitive -- `"Same Answer"` vs `"same answer"` does not qualify
+for the free short-circuit and falls through to a real judge call.
 
 Conservative by design: `passed` is only `True` at high judge-reported
 confidence AND a normalized score >= 0.8 -- since the rubric is 1-5,

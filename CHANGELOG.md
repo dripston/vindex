@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.4.2
+
+**Documentation-only release.** An eighth independent outside review
+confirmed 0.4.1's API-key fix works and found no new crashes or silent
+failures on any of the four public functions -- "more carefully
+hardened against adversarial and careless input than most early
+evaluation libraries." One real gap: the v0.4.1 exact-match/API-key
+fix was documented only in a `judge.py` code comment, not in the
+README a user actually reads. Fixed, plus documented an existing,
+deliberately-unchanged behavior the same review surfaced:
+
+- README now states the v0.4.0 API-key fix inline, next to the
+  "exact match skips the LLM call" claim it corrects.
+- `align()`'s case-sensitivity is now documented explicitly (a
+  `"Same Answer"` vs `"same answer"` gold match does NOT qualify for
+  `indic_judge`'s free exact-match short-circuit, unlike a whitespace
+  difference, which is normalized). Not changed -- case sensitivity is
+  a deliberate, defensible choice (a case difference is sometimes
+  substantive, e.g. in a code/technical answer, and sometimes
+  cosmetic, e.g. a proper noun) with no single correct default; the
+  judge model is a reasonable arbiter for that ambiguity. Pinned with
+  new tests rather than silently left undocumented.
+
 ## v0.4.1
 
 **One real bug found by a seventh independent outside review** (this

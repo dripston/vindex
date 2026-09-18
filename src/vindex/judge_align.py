@@ -57,6 +57,19 @@ def align(response: str, gold: str) -> AlignmentResult:
     Splits on whitespace only (script-agnostic: does not require
     word-boundary logic beyond that, since Devanagari and other Indic
     scripts already use spaces between words the same as Latin text).
+
+    CASE-SENSITIVE (noted after an independent outside review): no
+    `.lower()` anywhere in this function, so `"Same Answer"` and `"same
+    answer"` are NOT `aligned=True` -- they fall through to a real
+    judge call (indic_judge's reference-based mode) instead of the
+    free exact-match short-circuit. Not treated as a bug and left
+    case-sensitive deliberately: a case difference can be
+    substantively wrong in some domains (a code/technical answer where
+    `"AND"` and `"and"` mean different things) and cosmetic in others
+    (a proper noun's capitalization) -- there is no single correct
+    default, and the judge model is a reasonable arbiter for exactly
+    this kind of ambiguous case, unlike whitespace differences (which
+    are unambiguously cosmetic and are normalized by `.split()` above).
     """
     response_words = (response or "").split()
     gold_words = (gold or "").split()
