@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.1
+
+**One real bug found by a seventh independent outside review** (this
+one specifically noted the review found the package "more carefully
+hardened against adversarial and careless input than most early
+evaluation libraries," and this was the one real gap it found):
+
+- **`indic_judge`'s exact-match gold path required a Groq API key it
+  never used.** The docstring promises "an exact match with `gold`
+  skips the LLM call entirely" -- true only after a `GroqJudge()` had
+  already been constructed and had already validated `GROQ_API_KEY`
+  was present, which happened before the exact-match check ran. A
+  caller in pure reference-based mode, whose answer exactly matched
+  `gold`, got a hard `ValueError: GroqJudge needs an API key` for a
+  call that was never going to need one. Fixed: judge construction
+  (and its API-key validation) is now deferred until after the
+  exact-match short-circuit -- the exact-match branch reports the
+  caller-supplied judge's `model_id` (or the shipped default constant)
+  without ever constructing a live judge. Reference-free mode and a
+  genuinely-needed reference-based judge call both still require the
+  key as before.
+
 ## v0.4.0
 
 **Safe defaults, not just documented caveats.** After six independent

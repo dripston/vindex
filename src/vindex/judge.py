@@ -391,9 +391,6 @@ def indic_judge(
             detail={"question": question, "answer": answer},
         )
 
-    judge = judge or GroqJudge()
-    family_warning = _warn_if_same_family(judge.model_id, answering_model_id)
-
     if gold is not None and not isinstance(gold, str):
         # A non-string, non-None gold (e.g. a pandas nan in a dataframe
         # cell) would crash on gold.strip() below -- treat it the same
@@ -401,12 +398,36 @@ def indic_judge(
         # fix as coerce_text applies to question/answer above.
         gold = None
 
+    # FIXED (a real bug, found by an independent outside review): judge
+    # construction (GroqJudge() validates GROQ_API_KEY and raises
+    # ValueError if it's missing) used to happen HERE, before the
+    # exact-match alignment check below -- so a caller in pure
+    # reference-based mode whose answer exactly matches gold, which
+    # this docstring promises "skips the LLM call entirely," still got
+    # a hard ValueError for a missing API key it was never going to
+    # need. Deferred: only construct/validate a real judge once we know
+    # we're actually about to call one. The exact-match branch below
+    # reports the model_id the CALLER passed (or the shipped default
+    # constant, if none was passed) without ever constructing it --
+    # correct, since the caller-supplied judge's model_id is knowable
+    # without touching its (possibly key-validating) constructor for
+    # any real JudgeModel implementation that follows this project's
+    # own JudgeModel protocol (model_id is a plain attribute, not
+    # something that requires a live connection).
+    caller_supplied_judge = judge
+    default_model_id = (
+        caller_supplied_judge.model_id
+        if caller_supplied_judge is not None
+        else GroqJudge.DEFAULT_MODEL_ID
+    )
+    family_warning = _warn_if_same_family(default_model_id, answering_model_id)
+
     if gold is not None and gold.strip() != "":
         alignment = align(answer, gold)
         if alignment.aligned:
             detail = {
                 "mode": "reference_based",
-                "judge_model_id": judge.model_id,
+                "judge_model_id": default_model_id,
                 "aligned": True,
                 "reasoning": "answer aligns exactly with gold at the word level; no LLM call made.",
             }
@@ -427,6 +448,7 @@ def indic_judge(
         prompt = build_reference_free_prompt(question, answer)
         mode = "reference_free"
 
+    judge = caller_supplied_judge or GroqJudge()
     raw_response = judge.call(prompt)
     try:
         score, reasoning, confidence, raw_confidence = _parse_judge_response(raw_response)

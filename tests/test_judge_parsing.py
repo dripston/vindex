@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from vindex.judge import _family, _parse_judge_response
+from vindex.judge import _family, _parse_judge_response, indic_judge
 
 # --- _parse_judge_response: out-of-range score ---
 
@@ -164,3 +164,43 @@ def test_family_gpt4o_mini_pairing_is_not_caught_known_limitation() -> None:
 
 def test_family_instruct_suffix_after_size_token_is_not_caught_known_limitation() -> None:
     assert _family("llama-3.1-70b-instruct") != _family("llama-3.1-8b-instruct")
+
+
+# --- indic_judge: exact-match gold path must not require a judge/API
+# key at all (found by an independent outside review) ---
+
+
+def test_indic_judge_exact_match_gold_needs_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Regression: indic_judge's own docstring promises "an exact match
+    # with gold skips the LLM call entirely" -- but GroqJudge() (which
+    # validates GROQ_API_KEY and raises ValueError if it's missing) used
+    # to be constructed BEFORE the exact-match alignment check, so a
+    # caller in pure reference-based mode whose answer exactly matches
+    # gold still got a hard ValueError for an API key it was never
+    # going to need. monkeypatch.delenv guarantees no key is present
+    # regardless of this test run's actual environment.
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    result = indic_judge("भारत की राजधानी क्या है?", "नई दिल्ली", gold="नई दिल्ली")
+    assert result.label == "matched"
+    assert result.passed is True
+    assert result.detail["aligned"] is True
+
+
+def test_indic_judge_mismatched_gold_still_requires_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A real judge call is genuinely needed here (answer doesn't align
+    # with gold), so this must still raise without a key -- confirms
+    # the fix above didn't accidentally make the key optional when a
+    # judge call is actually required.
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="API key"):
+        indic_judge("भारत की राजधानी क्या है?", "मुंबई", gold="नई दिल्ली")
+
+
+def test_indic_judge_reference_free_mode_still_requires_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="API key"):
+        indic_judge("भारत की राजधानी क्या है?", "नई दिल्ली")
