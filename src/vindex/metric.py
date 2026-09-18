@@ -197,6 +197,21 @@ def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
     if response_label in ("roman", "mixed"):
         if bucket == "code-mixed" and response_label == "roman" and looks_like_hinglish(prompt):
             if not looks_like_hinglish(response):
+                # Tried, and reverted, during this same fix pass: a
+                # "downgrade to a soft label when the prompt has only 1
+                # function-word match" rule. It does not work --
+                # this package's own canonical Hinglish case ("Mumbai
+                # kahan hai?", which SHOULD hard-fail an all-English
+                # response) has exactly one match ("hai"), the same
+                # count as the "Se7en"/"ka" false positives (which
+                # SHOULD NOT hard-fail). Match count on the prompt does
+                # not distinguish a genuine single-function-word
+                # Hinglish question from an incidental match -- see
+                # language.py's module docstring for why a 2+-match
+                # threshold was already tried and reverted for the same
+                # underlying reason. Left as a hard fail, documented as
+                # a known, unresolved false-positive rate in
+                # README.md's Limitations section.
                 return MetricResult(
                     score=0.0,
                     passed=False,

@@ -152,7 +152,20 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str]:
     worse than raising and surfacing it as judge_error the way every
     other malformed shape already is."""
     data = json.loads(_extract_json(raw))
-    raw_score = int(round(float(data["score"])))
+    score_value = float(data["score"])
+    try:
+        raw_score = int(round(score_value))
+    except (OverflowError, ValueError) as exc:
+        # float("inf")/float("-inf") pass json.loads (Python's decoder
+        # accepts the non-standard "Infinity"/"-Infinity" tokens by
+        # default) and pass float(), but round()/int() on an infinite
+        # float raises OverflowError, not ValueError -- so it wasn't
+        # caught by the score-range check below, or by the caller's
+        # except tuple, and crashed indic_judge() instead of degrading
+        # to judge_error like every other malformed shape. NaN was
+        # already caught (float("nan") != anything, so the range check
+        # below raised ValueError) -- this closes the same gap for +-inf.
+        raise ValueError(f"score {score_value!r} is not a finite number") from exc
     if not 1 <= raw_score <= _MAX_SCORE:
         raise ValueError(f"score {raw_score!r} is outside the documented 1-{_MAX_SCORE} range")
     normalized_score = (raw_score - 1) / (_MAX_SCORE - 1)

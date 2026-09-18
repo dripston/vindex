@@ -82,6 +82,8 @@ what MUST happen before any precision/recall number (6.5) is published.
 
 from __future__ import annotations
 
+import re
+
 from vindex.judge_align import align
 from vindex.judge_model import JudgeModel
 from vindex.result import MetricResult
@@ -99,33 +101,68 @@ def _primary_gloss(reading: str) -> str:
     return primary.strip()
 
 
+def _contains_gloss(trace_lower: str, gloss: str) -> bool:
+    """Whole-word (not substring) match of `gloss` inside `trace_lower`.
+    `gloss` may itself be multiple words (e.g. "sea floor") -- matched
+    as a phrase with word boundaries at both ends, so "seafloor" or
+    "sea floors" don't match but the exact phrase does regardless of
+    surrounding punctuation/case.
+
+    FIXED (was a real bug): this used to be a plain substring match, so
+    a one-word gloss like "answer" matched inside "unanswerable" or
+    "answers" -- word-boundary regex closes that specific hole."""
+    pattern = r"\b" + re.escape(gloss) + r"\b"
+    return re.search(pattern, trace_lower) is not None
+
+
 def _trace_says_wrong_reading(trace: str, word: TrapWord) -> bool:
     """True if `trace` mentions the wrong reading (reading_b) without
     also mentioning the correct one (reading_a) -- case-insensitive,
-    substring match on each reading's primary gloss (the part before
+    whole-word match on each reading's primary gloss (the part before
     any parenthetical clarification -- see _primary_gloss).
 
     KNOWN LIMITATION, narrower than this may first appear: "mentions
-    reading_a" is a literal substring match on the dictionary's exact
-    gloss, not a paraphrase check. A trace that mentions reading_b only
-    to correctly rule it out (e.g. "this does NOT mean sea floor, it
-    means sea level") is correctly NOT flagged, because it also
-    contains the literal string "sea level" (reading_a). But a trace
-    that does the same correct reasoning in different words (e.g. "...
-    it's about the surface, not the depths") is flagged as a misread
-    anyway, because reading_a's exact gloss never appears -- this is a
-    false positive on a genuinely correct trace, not a scope limitation
-    like the "N known terms" one. Symmetrically, a trace that DOES use
-    the wrong reading but phrases it with a synonym never in the
-    dictionary (e.g. "ocean bottom" instead of "sea floor") is invisible
-    to this check -- a false negative. Both directions are inherent to
-    substring matching without any NLP; see
-    test_check_trace_false_positive_on_correct_paraphrase and
-    test_check_trace_false_negative_on_synonym_for_wrong_reading for
-    both pinned as known, not silently assumed away."""
+    reading_a"/"mentions reading_b" is a whole-word match on the
+    dictionary's exact gloss, not a paraphrase check. A trace that
+    mentions reading_b only to correctly rule it out (e.g. "this does
+    NOT mean sea floor, it means sea level") is correctly NOT flagged,
+    because it also contains the literal string "sea level"
+    (reading_a). But a trace that does the same correct reasoning in
+    different words (e.g. "... it's about the surface, not the
+    depths") is flagged as a misread anyway, because reading_a's exact
+    gloss never appears -- this is a false positive on a genuinely
+    correct trace, not a scope limitation like the "N known terms"
+    one. Symmetrically, a trace that DOES use the wrong reading but
+    phrases it with a synonym never in the dictionary (e.g. "ocean
+    bottom" instead of "sea floor") is invisible to this check -- a
+    false negative. Both directions are inherent to word-level matching
+    without any NLP; see test_check_trace_false_positive_on_correct_paraphrase
+    and test_check_trace_false_negative_on_synonym_for_wrong_reading for
+    both pinned as known, not silently assumed away.
+
+    A SHARPER VERSION OF THE SAME LIMITATION (found by an independent
+    outside review): 25 of the 70 shipped dictionary entries have a
+    reading_b that is itself an ordinary, high-frequency English word
+    with no connection to the source term when used in its own right
+    -- e.g. उत्तर's reading_b is "answer", अंग's is "organ", फल's is
+    "result". Because judge reasoning traces are themselves written in
+    English about whether an answer is correct, a trace that legitimately
+    uses the word "answer" (about the answer being evaluated, nothing to
+    do with उत्तर meaning "north") is indistinguishable, at the word
+    level, from a trace that misread उत्तर as "answer". There is no
+    transliteration or context field in TrapWord to anchor the match
+    more precisely against. The word-boundary fix above stops a
+    same-word substring accident (e.g. "answer" inside "unanswerable")
+    but does NOT stop this: an isolated, correct, unrelated use of
+    "answer" in an English trace still flags if the source happens to
+    contain उत्तर. On realistic Hindi-source/English-trace input this
+    is not a rare edge case -- treat any check_trace flag on one of
+    these 25 terms as needing a human look, not as confirmed evidence
+    of a misread, until the dictionary gains a way to anchor reading_b
+    to the source term itself rather than to bare English vocabulary."""
     trace_lower = trace.lower()
-    says_b = _primary_gloss(word.reading_b).lower() in trace_lower
-    says_a = _primary_gloss(word.reading_a).lower() in trace_lower
+    says_b = _contains_gloss(trace_lower, _primary_gloss(word.reading_b).lower())
+    says_a = _contains_gloss(trace_lower, _primary_gloss(word.reading_a).lower())
     return says_b and not says_a
 
 

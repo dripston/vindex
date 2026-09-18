@@ -54,6 +54,24 @@ def test_parse_judge_response_negative_score_raises() -> None:
         _parse_judge_response(raw)
 
 
+def test_parse_judge_response_infinity_score_raises_value_error_not_overflow() -> None:
+    # Regression: json.loads accepts the non-standard "Infinity" token,
+    # and float("inf") passes float() -- but round()/int() on an
+    # infinite float raises OverflowError, which wasn't in the
+    # score-range check's path and crashed indic_judge() uncaught
+    # instead of degrading to judge_error like every other malformed
+    # judge response.
+    raw = '{"score": Infinity, "confidence": "high", "reasoning": "x"}'
+    with pytest.raises(ValueError):
+        _parse_judge_response(raw)
+
+
+def test_parse_judge_response_negative_infinity_score_raises() -> None:
+    raw = '{"score": -Infinity, "confidence": "high", "reasoning": "x"}'
+    with pytest.raises(ValueError):
+        _parse_judge_response(raw)
+
+
 # --- _family: same-model self-enhancement heuristic ---
 
 

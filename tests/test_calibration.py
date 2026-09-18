@@ -114,3 +114,59 @@ def test_calibrate_empty_correct_raises() -> None:
 def test_calibrate_empty_wrong_raises() -> None:
     with pytest.raises(ValueError, match="at least one correct and one wrong"):
         calibrate([0.5], [])
+
+
+# --- calibrate() warnings (added after an outside review found these
+# degenerate inputs were accepted silently, with no signal anything
+# was wrong) ---
+
+
+def test_calibrate_single_identical_point_warns_too_few_cases() -> None:
+    # Regression: calibrate([0.5], [0.5]) used to return threshold=0.5
+    # looking like a real fit, with nothing indicating it was one point
+    # each with accuracy_at_threshold == 0.0 (correct must be >=
+    # threshold, wrong must be < threshold; a tie goes to "correct").
+    result = calibrate([0.5], [0.5])
+    assert any("too few cases" in w for w in result.warnings)
+
+
+def test_calibrate_few_cases_below_five_warns() -> None:
+    result = calibrate([0.9, 0.8, 0.7], [0.2, 0.1])
+    assert any("too few cases" in w for w in result.warnings)
+
+
+def test_calibrate_enough_cases_does_not_warn_too_few() -> None:
+    result = calibrate([0.9, 0.85, 0.8, 0.75, 0.7], [0.3, 0.25, 0.2, 0.15, 0.1])
+    assert not any("too few cases" in w for w in result.warnings)
+
+
+def test_calibrate_out_of_range_scores_warns() -> None:
+    # Regression: calibrate([50.0], [-50.0]) used to report
+    # accuracy_at_threshold == 1.0 with no indication these aren't
+    # valid cosine similarities at all.
+    result = calibrate([50.0, 40.0, 45.0, 42.0, 48.0], [-50.0, -40.0, -45.0, -42.0, -48.0])
+    assert any("[-1, 1]" in w for w in result.warnings)
+
+
+def test_calibrate_in_range_scores_does_not_warn_out_of_range() -> None:
+    result = calibrate([0.9, 0.85, 0.8, 0.75, 0.7], [0.3, 0.25, 0.2, 0.15, 0.1])
+    assert not any("[-1, 1]" in w for w in result.warnings)
+
+
+def test_calibrate_inverted_data_warns_at_or_below_chance() -> None:
+    # Regression: calibrate([0.1, 0.2], [0.9, 0.8]) -- correct/wrong
+    # swapped, or a genuinely inverted encoder -- used to return a
+    # threshold with no signal that the fitted accuracy is no better
+    # than a coin flip.
+    result = calibrate([0.1, 0.2, 0.15, 0.25, 0.12], [0.9, 0.8, 0.85, 0.75, 0.88])
+    assert any("at or below chance" in w for w in result.warnings)
+
+
+def test_calibrate_good_separation_does_not_warn_at_or_below_chance() -> None:
+    result = calibrate([0.9, 0.85, 0.8, 0.75, 0.7], [0.3, 0.25, 0.2, 0.15, 0.1])
+    assert not any("at or below chance" in w for w in result.warnings)
+
+
+def test_calibrate_clean_fit_has_no_warnings() -> None:
+    result = calibrate([0.9, 0.85, 0.8, 0.75, 0.7], [0.3, 0.25, 0.2, 0.15, 0.1])
+    assert result.warnings == ()

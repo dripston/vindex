@@ -85,12 +85,20 @@ class CalibratedThreshold:
     n_cases             : number of (correct, wrong_hard) case pairs
                           this cell was calibrated from. Always 10 for
                           the shipped table -- see module docstring.
+    warnings            : populated only by calibrate() (always empty,
+                          `()`, on the shipped CALIBRATION_TABLE
+                          entries above). Non-fatal signals that this
+                          particular fit may not be trustworthy -- see
+                          calibrate()'s docstring for exactly what is
+                          checked and why these are warnings, not
+                          raised errors.
     """
 
     threshold: float
     accuracy_at_threshold: float
     accuracy_at_default: float
     n_cases: int = 10
+    warnings: tuple[str, ...] = ()
 
 
 # Derived from experiments/results_clean/discrimination_summary.csv,
@@ -168,6 +176,30 @@ def calibrate(
     cases per cell from one dataset (see module docstring) -- it is not
     a substitute for calibrating on your own data, which this function
     exists to make easy.
+
+    GUARDS (added after an independent outside review found this
+    function accepted degenerate input silently -- e.g.
+    `calibrate([0.5], [0.5])` returned threshold=0.5 as if it were a
+    real fit, and `calibrate([0.1, 0.2], [0.9, 0.8])`, an inverted
+    input where "correct" scores are lower than "wrong" scores,
+    returned a threshold with no indication anything was backwards):
+    this still ALWAYS returns a CalibratedThreshold -- it does not
+    raise on any input shape it previously accepted, since refusing to
+    fit at all would be worse for a caller with genuinely small
+    real-world data. Instead, non-fatal problems are surfaced in the
+    returned `.warnings` tuple:
+      - fewer than 5 cases on either side ("too few cases to trust
+        this fit").
+      - similarities outside cosine similarity's valid [-1, 1] range
+        on either side ("scores outside [-1, 1] -- is this actually
+        cosine similarity?").
+      - the fitted threshold does not beat a coin flip
+        (accuracy_at_threshold <= 0.5) ("fitted accuracy is at or
+        below chance -- this data may not separate correct from wrong
+        at all, or the correct/wrong lists may be swapped").
+    Always check `.warnings` before trusting a threshold from a small
+    or unfamiliar dataset; an empty tuple means none of these specific
+    checks fired, not that the fit is necessarily good.
     """
     if not similarities_correct or not similarities_wrong:
         raise ValueError(
@@ -195,9 +227,31 @@ def calibrate(
         + sum(1 for s in similarities_wrong if s < 0.5)
     ) / n
 
+    warnings: list[str] = []
+    n_cases = min(len(similarities_correct), len(similarities_wrong))
+    if n_cases < 5:
+        warnings.append(
+            f"only {n_cases} case(s) on the smaller side -- too few cases to "
+            "trust this fit; a threshold from this few points can look "
+            "perfect by chance."
+        )
+    if any(s < -1.0 or s > 1.0 for s in similarities_correct + similarities_wrong):
+        warnings.append(
+            "some scores are outside [-1, 1] -- is this actually cosine "
+            "similarity? calibrate() assumes cosine similarity but does "
+            "not enforce it."
+        )
+    if best_accuracy <= 0.5:
+        warnings.append(
+            f"fitted accuracy ({best_accuracy:.2f}) is at or below chance -- "
+            "this data may not separate correct from wrong at all, or the "
+            "correct/wrong lists may be swapped."
+        )
+
     return CalibratedThreshold(
         threshold=best_threshold,
         accuracy_at_threshold=best_accuracy,
         accuracy_at_default=accuracy_at_default,
-        n_cases=min(len(similarities_correct), len(similarities_wrong)),
+        n_cases=n_cases,
+        warnings=tuple(warnings),
     )

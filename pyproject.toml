@@ -1,6 +1,6 @@
 [project]
 name = "vindex"
-version = "0.2.1"
+version = "0.2.2"
 description = "Evaluation metrics for Indic and code-mixed LLM output."
 readme = "README.md"
 license = { text = "MIT" }

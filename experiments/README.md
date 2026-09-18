@@ -208,6 +208,19 @@ Reproduce this table: `python experiments/scripts/discrimination.py`
 sentence-transformers, transformers, and torch --
 `pip install vindex[similarity]`).
 
+**This table alone overstates several cells.** "Accuracy @ threshold"
+is an in-sample argmax fit with no holdout -- it can only go up or stay
+flat relative to 0.5, so it isn't evidence an encoder actually
+discriminates. The threshold-independent number (ROC AUC) tells a
+different story for several rows here: `multilingual-e5-base`/hi looks
+strong above (0.632) but has AUC 0.500, exactly chance; `LaBSE`/en and
+`LaBSE`/hi have AUC 0.070 and 0.167, both worse than a coin flip; MuRIL
+never clears 0.6 here for the reason already stated, and its AUC (0.00
+to 0.44) shows it's actually inverted on `en`/`hi`, not just weak. Full
+AUC table, generated straight from the CSV (`python
+experiments/scripts/generate_auc_table.py`, not hand-transcribed):
+README.md's "The argument for calibrated_similarity" section.
+
 ## Milestone 5: indic_judge does not repeat the समुद्र तल error -- confirmed, not assumed
 
 Phase 0 (`experiments/FINDINGS.md`) found `run_experiment.py`'s English

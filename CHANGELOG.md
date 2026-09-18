@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.2.2
+
+**Fixes found by a second independent outside review** (this one installed
+`vindex==0.2.1` fresh from PyPI, diffed it against 0.2.0, and drove
+`indic_judge`/`check_trace`/`script_adherence`/`calibrated_similarity` with
+adversarial input -- no context that this was our own project):
+
+- **The "AUC (threshold-free)" column added in v0.2.1 was, in all 15 rows,
+  actually a copy of the calibrated-threshold column** -- a hand-transcription
+  error, not a `similarity.py`/`calibration.py` bug (the code was correct in
+  both 0.2.0 and 0.2.1; only the README table was wrong). The analysis built
+  on the wrong column was wrong too: it named `multilingual-e5-base`/hi
+  (real AUC 0.500, exactly chance) as one of only two strong cells, and
+  described `LaBSE`/en (real AUC 0.070, strongly inverted) as "barely above
+  chance." Regenerated from `experiments/results_clean/discrimination_summary.csv`
+  by a new script (`experiments/scripts/generate_auc_table.py`) instead of
+  hand-transcribed -- real numbers: 9 of 15 cells above chance, only 3
+  strong (>=0.75), mean AUC 0.525. Re-run that script before ever editing
+  this table by hand again.
+- **`check_trace()` false-positives on ordinary English words.** 25 of the
+  70 trap-word dictionary entries have a `reading_b` gloss that is itself a
+  common English word with no connection to the Hindi term on its own (e.g.
+  उत्तर's wrong-reading gloss is "answer"; अंग's is "organ"). Since judge
+  reasoning traces are themselves English prose about correctness, a
+  trace's ordinary, unrelated use of "answer" was indistinguishable from a
+  genuine misread of उत्तर. Fixed the narrower bug in the same code path
+  (substring match let "answer" match inside "unanswerable") by switching
+  to word-boundary matching -- this does NOT fix the broader false-positive
+  rate on isolated legitimate word use, which has no cheap fix without a
+  transliteration/context anchor `TrapWord` doesn't have; documented
+  plainly in `_trace_says_wrong_reading`'s docstring instead of silently
+  left as a surprise.
+- **`indic_judge` crashed with an uncaught `OverflowError`** on a judge
+  response containing `{"score": Infinity, ...}`. `json.loads` accepts the
+  non-standard `Infinity`/`-Infinity` tokens by default, and `float()`
+  accepts them too, but `round()`/`int()` on an infinite float raises
+  `OverflowError` -- not one of the exception types `_parse_judge_response`
+  or its caller already caught, so a malformed judge response crashed the
+  whole call instead of degrading to `judge_error` like every other
+  malformed shape. Fixed: caught explicitly, re-raised as `ValueError`.
+- **`calibrate()` accepted degenerate input silently.** `calibrate([0.5],
+  [0.5])` returned a threshold as if it were a real fit off one point per
+  side; `calibrate([50.0], [-50.0])` reported "accuracy 1.0" off values
+  outside cosine similarity's valid range with no indication anything was
+  wrong; `calibrate()` on data where "correct" scores are lower than
+  "wrong" scores returned a threshold with no signal the ranking is
+  inverted. Fixed: `calibrate()` still always returns a result (never
+  refuses to fit small real-world data), but `CalibratedThreshold` gained
+  a `.warnings` tuple that flags too-few-cases (<5 per side),
+  out-of-[-1,1]-range scores, and at-or-below-chance fitted accuracy.
+  Always empty on the shipped `CALIBRATION_TABLE`.
+- **`language_mismatch`'s hard-fail-on-one-match problem was investigated
+  and NOT fixed** -- tried downgrading to a soft label when the prompt has
+  exactly one Hindi-function-word match (the "Se7en"/"ka" false-positive
+  case), but this package's own canonical example, `"Mumbai kahan hai?"`
+  (which SHOULD hard-fail an all-English response), also has exactly one
+  match. Match count cannot distinguish the two cases -- the same wall a
+  2+-match threshold hit earlier and was reverted for. No code change;
+  documented as a real, unresolved trade-off in `metric.py` and
+  README.md's Limitations section, same as before.
+
 ## v0.2.1
 
 **Packaging fix, not a feature release.** The `v0.2.0` package published to

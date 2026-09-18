@@ -131,6 +131,32 @@ def test_check_trace_catches_uttar_mistranslation() -> None:
     assert r.detail["flagged_terms"][0]["reading_b"] == "answer"
 
 
+def test_check_trace_word_boundary_no_false_match_inside_longer_word() -> None:
+    # Regression: substring matching used to flag "answer" inside
+    # "unanswerable" -- an outside review's real finding. Word-boundary
+    # matching fixes this specific accident (does NOT fix the broader,
+    # documented limitation that an isolated, correct, unrelated use of
+    # "answer" still flags -- see _trace_says_wrong_reading's docstring).
+    source = "दिल्ली से उत्तर की ओर कौन सा राज्य है?"
+    trace = "This question is fundamentally unanswerable given the data provided."
+    r = check_trace(source, trace, trap_words=[_UTTAR])
+    assert r.label == "no_misread_detected"
+
+
+def test_check_trace_common_word_gloss_false_positive_known_limitation() -> None:
+    # KNOWN LIMITATION (see _trace_says_wrong_reading's docstring's
+    # "SHARPER VERSION" paragraph, found by an outside review): उत्तर's
+    # reading_b, "answer", is an ordinary English word that any judge
+    # trace evaluating correctness is likely to use regardless of
+    # whether उत्तर (north) was ever misread. Word-boundary matching
+    # does not fix this -- pinned here as a documented, not silently
+    # assumed-away, false positive.
+    source = "दिल्ली से उत्तर की ओर कौन सा राज्य है?"
+    trace = "Checking the answer against the source, the reasoning holds up."
+    r = check_trace(source, trace, trap_words=[_UTTAR])
+    assert r.label == "misread_detected"  # wrong: "answer" here has nothing to do with उत्तर
+
+
 # --- check_trace: multiple trap words, only matching ones flagged ---
 
 
