@@ -100,7 +100,7 @@ because a gold reference measurably masks comprehension drift in this
 project's own data. Pass `gold=` for reference-based mode, which runs
 align-then-judge first (Sarvam's shape): an exact match with `gold`
 skips the LLM call entirely -- including the API key requirement
-(fixed in v0.4.0: this used to construct and validate a judge before
+(fixed in v0.4.1: this used to construct and validate a judge before
 checking for an exact match, so a caller with no `GROQ_API_KEY` got a
 `ValueError` even when the answer matched `gold` exactly). The match
 is exact at the word level after whitespace normalization, but

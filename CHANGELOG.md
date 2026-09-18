@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.3
+
+**One-line correction, found by a ninth independent outside review**
+(which otherwise found nothing new -- "no material overclaim relative
+to behavior in 0.4.2"): the v0.4.2 README note about the exact-match
+API-key fix attributed it to v0.4.0. The fix (deferring `GroqJudge()`
+construction past the exact-match short-circuit) actually shipped in
+**v0.4.1** -- confirmed against that release's own CHANGELOG entry and
+commit history. Corrected in both README.md and this file's own v0.4.2
+entry. No code change.
+
 ## v0.4.2
 
 **Documentation-only release.** An eighth independent outside review
@@ -11,7 +22,7 @@ fix was documented only in a `judge.py` code comment, not in the
 README a user actually reads. Fixed, plus documented an existing,
 deliberately-unchanged behavior the same review surfaced:
 
-- README now states the v0.4.0 API-key fix inline, next to the
+- README now states the v0.4.1 API-key fix inline, next to the
   "exact match skips the LLM call" claim it corrects.
 - `align()`'s case-sensitivity is now documented explicitly (a
   `"Same Answer"` vs `"same answer"` gold match does NOT qualify for
