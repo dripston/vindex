@@ -229,16 +229,18 @@ def test_numerals_only_response_to_romanized_prompt() -> None:
     assert r.passed is False
 
 
-def test_numerals_only_prompt_is_not_empty_and_buckets_as_mixed() -> None:
-    # The PROMPT bucketing (_prompt_bucket) is unaffected by the
-    # no_script_signal fix -- it still buckets a numerals-only prompt as
-    # code-mixed. But the RESPONSE here is also numerals-only, so it
-    # trips the same no_script_signal check as the response-only tests
-    # above: a numerals-only response is not a real answer regardless of
-    # what bucket the prompt fell into.
+def test_numerals_only_prompt_is_not_empty_and_is_no_script_signal() -> None:
+    # Regression: the PROMPT-side no_script_signal check (found missing
+    # by an outside review; the response-side check existed since
+    # v0.2.1, the prompt side did not) now catches a numerals-only
+    # prompt the same way the response side already did -- classify()
+    # == "mixed" only because there's nothing to rank, not because it's
+    # genuinely code-mixed. This used to bucket as "code-mixed"
+    # (read as Hinglish) and could then score a clean pass; now it
+    # correctly reports no_script_signal before any bucket is chosen.
     r = script_adherence("12345 100 42", "12345 100 42")
     assert r.detail["prompt_label"] == "mixed"
-    assert r.detail["prompt_bucket"] == "code-mixed"
+    assert "prompt_bucket" not in r.detail
     assert r.label == "no_script_signal"
     assert r.passed is False
 
@@ -276,10 +278,16 @@ def test_punctuation_only_response_to_romanized_prompt() -> None:
     assert r.passed is False
 
 
-def test_punctuation_only_prompt_buckets_as_code_mixed() -> None:
+def test_punctuation_only_prompt_is_no_script_signal() -> None:
+    # Regression: a punctuation-only prompt ("... !!! ???") used to
+    # bucket as "code-mixed" (read as a Hinglish prompt) and could then
+    # score a confident `matched, passed=True` for an ordinary English
+    # response, with a reason string asserting "prompt is code-mixed"
+    # -- false. Same fix as the numerals-only prompt case above.
     r = script_adherence("... !!! ???", "Mumbai is the capital.")
     assert r.detail["prompt_label"] == "mixed"
-    assert r.detail["prompt_bucket"] == "code-mixed"
+    assert r.label == "no_script_signal"
+    assert r.passed is False
 
 
 # --- mixed-script response (explicit code-mixing across multiple buckets) ---
@@ -400,5 +408,62 @@ def test_devanagari_sentence_containing_numerals_is_unaffected() -> None:
     # happens to contain Devanagari digits -- only digit-ONLY (or
     # digit-plus-danda-only) responses are affected.
     r = script_adherence("भारत की जनसंख्या कितनी है?", "भारत की जनसंख्या १४० करोड़ है।")
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+# --- PROMPT-side no_script_signal (found missing by an outside review:
+# the response-side check existed since v0.2.1, the prompt side never
+# had an equivalent) ---
+
+
+def test_emoji_only_prompt_is_no_script_signal() -> None:
+    # Regression: an emoji-only prompt had classify() == "mixed" (same
+    # "nothing to rank" fallthrough as the response-side cases), which
+    # _prompt_bucket read as "code-mixed" -- i.e. a Hinglish prompt.
+    # An ordinary English response then scored a confident
+    # `matched, passed=True`, with a reason string asserting "prompt is
+    # code-mixed" -- false. The prompt was never Hinglish; it had no
+    # script content to judge at all.
+    r = script_adherence("🙏🙏🙏", "Delhi is the capital of India.")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_gibberish_symbol_only_prompt_is_no_script_signal() -> None:
+    r = script_adherence("???", "Delhi is the capital of India.")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_russian_prompt_and_response_is_no_script_signal() -> None:
+    # Regression: Cyrillic has no script bucket of its own (documented
+    # limitation), so classify("Где Москва?") == "mixed" and the prompt
+    # was bucketed as "code-mixed"/Hinglish -- a real Russian question
+    # confidently mislabeled. Both prompt and response are Cyrillic
+    # here, so the prompt-side check must fire before any bucket
+    # decision is made.
+    r = script_adherence("Где Москва?", "Москва в России.")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_real_hinglish_prompt_still_buckets_correctly_after_prompt_side_fix() -> None:
+    # The prompt-side no_script_signal check must not affect a real
+    # Hinglish prompt, which has real Latin letters (a genuine script
+    # signal), unlike the degenerate cases above.
+    r = script_adherence("Mumbai kahan hai?", "Mumbai Maharashtra mein hai.")
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+def test_real_devanagari_prompt_still_buckets_correctly_after_prompt_side_fix() -> None:
+    r = script_adherence("भारत की राजधानी क्या है?", "भारत की राजधानी नई दिल्ली है।")
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+def test_real_english_prompt_still_buckets_correctly_after_prompt_side_fix() -> None:
+    r = script_adherence("What is the capital of India?", "New Delhi.")
     assert r.label == "matched"
     assert r.passed is True

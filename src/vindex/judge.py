@@ -355,11 +355,17 @@ def indic_judge(
     detail payload when it matches the judge model's family.
 
     CONSERVATIVE DEFAULT (Milestone 5.5): passed=True only when the
-    judge reports "high" confidence AND a normalized score >= 0.8 (a
-    raw 4 or 5 out of 5). Anything else -- including a high score at
-    low confidence -- is passed=False with label "flagged", not
-    silently treated as a pass. Better a false alarm than a silent
-    pass on a wrong answer in a banking flow.
+    judge reports "high" confidence AND a normalized score >= 0.8.
+    CORRECTED (this docstring previously said "a raw 4 or 5 out of
+    5" -- wrong, found by an independent outside review): normalization
+    is `(raw_score - 1) / (_MAX_SCORE - 1)`, so a raw 4 normalizes to
+    (4-1)/4 = 0.75, which does NOT clear the 0.8 gate. Only a raw 5
+    passes; a raw 4 at high confidence is passed=False, label=
+    "flagged" -- exactly like a raw 4 at low confidence. Anything below
+    a raw 5 -- including a high score at low confidence -- is
+    passed=False with label "flagged", not silently treated as a pass.
+    Better a false alarm than a silent pass on a wrong answer in a
+    banking flow.
     """
     question = coerce_text(question)
     answer = coerce_text(answer)

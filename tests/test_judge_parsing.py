@@ -33,6 +33,21 @@ def test_parse_judge_response_score_at_low_end_of_range() -> None:
     assert score == 0.0
 
 
+def test_parse_judge_response_raw_score_4_normalizes_below_the_pass_gate() -> None:
+    # Documents the exact behavior indic_judge's docstring previously
+    # misstated (found by an independent outside review): a raw score
+    # of 4 normalizes to (4-1)/(5-1) = 0.75, which is below the 0.8
+    # pass-gate threshold -- only a raw 5 (normalized 1.0) passes at
+    # high confidence. This is not a bug; the code was always correct.
+    # Only the docstring's "a raw 4 or 5 out of 5" claim was wrong.
+    raw = json.dumps({"score": 4, "confidence": "high", "reasoning": "good"})
+    score, _, confidence, _ = _parse_judge_response(raw)
+    assert score == 0.75
+    assert confidence == "high"
+    passes_gate = confidence == "high" and score >= 0.8
+    assert passes_gate is False
+
+
 def test_parse_judge_response_medium_confidence_normalizes_to_low_but_reports_raw() -> None:
     # Regression: a judge sending "medium" (not "high"/"low") used to
     # have its raw value silently overwritten by the normalized "low"

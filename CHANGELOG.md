@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.3.1
+
+**Two fixes found by a fifth independent outside review** (installed
+0.3.0, read all 19 modules, ran four adversarial batteries) -- this
+review's other findings were checked and are documented trade-offs
+already covered by this project's existing disclosure (class-imbalance
+defeating `calibrate()`'s chance guard, `_family` over-triggering on
+version numbers, `check_trace` missing inflected Hindi forms, and
+several more) rather than new code changes; see the review's own
+"Production verdict" section for the full list if extending this
+further.
+
+- **`indic_judge`'s docstring said "a raw 4 or 5 out of 5" passes --
+  wrong.** `(4-1)/(5-1) = 0.75`, which does not clear the 0.8
+  normalized-score gate. The CODE was always correct (only a raw 5
+  passes at high confidence); only the docstring and a README line
+  overstated it. Both corrected to state the actual gate plainly.
+- **`script_adherence` had no prompt-side `no_script_signal` check.**
+  The response-side check (v0.2.1) was never mirrored onto the prompt:
+  an emoji-only, digit-only, punctuation-only, or real-but-unsupported-
+  script (Cyrillic, CJK) prompt has `classify() == "mixed"` by the same
+  "nothing to rank" construction as the response-side cases, and
+  `_prompt_bucket` read that as "code-mixed" -- i.e. Romanized
+  Hindi/Hinglish. A Russian or emoji-only prompt was confidently
+  bucketed as Hinglish and then scored a clean `matched, passed=True`
+  for an ordinary English response, with a `reason` string that
+  asserted "prompt is code-mixed" -- false. Fixed by applying the same
+  guard to the prompt.
+
 ## v0.3.0
 
 **Fixes and one dictionary correction found by a fourth independent

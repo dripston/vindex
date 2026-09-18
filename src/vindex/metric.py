@@ -197,6 +197,34 @@ def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
             detail={"prompt_label": prompt_label, "response_label": response_label},
         )
 
+    if _has_no_script_signal(prompt):
+        # FIXED (a real bug, found by an independent outside review):
+        # _has_no_script_signal was only ever applied to the response.
+        # A prompt with no recognized script content at all (emoji-only,
+        # digit-only, punctuation-only, or a real but unrecognized
+        # script like Cyrillic/CJK) has classify(prompt) == "mixed" by
+        # construction -- exactly the same "nothing to rank" fallthrough
+        # documented for the response side -- and _prompt_bucket read
+        # that as "code-mixed", i.e. Romanized Hindi/Hinglish. A
+        # Russian, Japanese, or emoji-only prompt was confidently
+        # bucketed as a Hinglish prompt and then scored a clean
+        # `matched, passed=True` for an English response, with a reason
+        # string that asserted "prompt is code-mixed" -- false. Applying
+        # the same guard to the prompt that already existed for the
+        # response closes this the same way.
+        return MetricResult(
+            score=0.0,
+            passed=False,
+            label="no_script_signal",
+            reason=(
+                "prompt has no alphabetic characters in any recognized script "
+                "(e.g. emoji, digits, punctuation-only, or an unrecognized script "
+                "like Cyrillic/CJK) -- not a genuine code-mixed/Hinglish prompt, so "
+                "no script-adherence verdict can be made against it."
+            ),
+            detail={"prompt_label": prompt_label, "response_label": response_label},
+        )
+
     bucket = _prompt_bucket(prompt)
     detail = {
         "prompt_bucket": bucket,

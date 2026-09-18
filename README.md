@@ -88,10 +88,11 @@ align-then-judge first (Sarvam's shape): an exact match with `gold`
 skips the LLM call entirely.
 
 Conservative by design: `passed` is only `True` at high judge-reported
-confidence and a high score -- an ambiguous case is `label="flagged"`,
-not a silent pass. Requires the `judge` extra (the `groq` SDK) and a
-`GROQ_API_KEY`. See the Limitations section for what this metric does
-not (yet) do.
+confidence AND a normalized score >= 0.8 -- since the rubric is 1-5,
+that means only a raw score of 5 passes; a raw 4 at high confidence is
+still `label="flagged"`, not a pass. Requires the `judge` extra (the
+`groq` SDK) and a `GROQ_API_KEY`. See the Limitations section for what
+this metric does not (yet) do.
 
 ```python
 from vindex import check_trace
