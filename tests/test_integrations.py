@@ -44,12 +44,30 @@ def test_deepeval_adapter_matched_case() -> None:
     assert "matched" in metric.reason
 
 
-def test_deepeval_adapter_language_mismatch_case() -> None:
+def test_deepeval_adapter_language_mismatch_off_by_default() -> None:
+    # DEFAULT CHANGED (found by repeated independent outside review):
+    # script_adherence's strict_language_check now defaults to False,
+    # so this case (a Roman-script response to a Hinglish prompt)
+    # passes on the script check alone, without also gating on the
+    # 14-word Hinglish-detection heuristic's proven false-positive rate.
     tc = LLMTestCase(
         input="Mumbai kahan hai?",
         actual_output="Mumbai is the capital of Maharashtra.",
     )
     metric = ScriptAdherenceMetric()
+    metric.measure(tc)
+
+    assert metric.score == 1.0
+    assert metric.is_successful() is True
+    assert "matched" in metric.reason
+
+
+def test_deepeval_adapter_language_mismatch_case_when_strict() -> None:
+    tc = LLMTestCase(
+        input="Mumbai kahan hai?",
+        actual_output="Mumbai is the capital of Maharashtra.",
+    )
+    metric = ScriptAdherenceMetric(strict_language_check=True)
     metric.measure(tc)
 
     assert metric.score == 0.0

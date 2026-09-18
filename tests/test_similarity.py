@@ -60,11 +60,18 @@ def test_calibrated_similarity_muril_without_override_raises() -> None:
 
 
 def test_calibrated_similarity_identical_text_is_similar() -> None:
+    # min_auc=0.0 disables the AUC gate (default 0.7) -- this test is
+    # about the encode-and-compare mechanism itself (identical text
+    # should score ~1.0 similarity), not about whether MiniLM-L6-v2/en
+    # (real AUC 0.6, below the default gate) is a trustworthy cell. See
+    # test_calibrated_similarity_low_auc_cell_is_low_discrimination_by_default
+    # below for what happens without min_auc=0.0.
     r = calibrated_similarity(
         gold="The capital of Maharashtra is Mumbai.",
         response="The capital of Maharashtra is Mumbai.",
         language="en",
         encoder_name=_ENCODER,
+        min_auc=0.0,
     )
     assert r.label == "similar"
     assert r.passed is True
@@ -79,8 +86,10 @@ def test_calibrated_similarity_scores_higher_for_correct_than_wrong_entity() -> 
     correct = "Mumbai is the capital of Maharashtra."
     wrong = "The capital of Tamil Nadu is Chennai."
 
-    r_correct = calibrated_similarity(gold, correct, language="en", encoder_name=_ENCODER)
-    r_wrong = calibrated_similarity(gold, wrong, language="en", encoder_name=_ENCODER)
+    r_correct = calibrated_similarity(
+        gold, correct, language="en", encoder_name=_ENCODER, min_auc=0.0
+    )
+    r_wrong = calibrated_similarity(gold, wrong, language="en", encoder_name=_ENCODER, min_auc=0.0)
 
     assert r_correct.score > r_wrong.score
 
@@ -90,7 +99,11 @@ def test_calibrated_similarity_scores_higher_for_correct_than_wrong_entity() -> 
 
 def test_calibrated_similarity_detail_reports_calibration_metadata() -> None:
     r = calibrated_similarity(
-        gold="hello world", response="hello world", language="en", encoder_name=_ENCODER
+        gold="hello world",
+        response="hello world",
+        language="en",
+        encoder_name=_ENCODER,
+        min_auc=0.0,
     )
     assert r.detail["encoder"] == _ENCODER
     assert r.detail["language"] == "en"
@@ -101,8 +114,11 @@ def test_calibrated_similarity_detail_reports_calibration_metadata() -> None:
 
 def test_calibrated_similarity_score_is_bounded() -> None:
     r = calibrated_similarity(
-        gold="hello world", response="completely unrelated text", language="en",
+        gold="hello world",
+        response="completely unrelated text",
+        language="en",
         encoder_name=_ENCODER,
+        min_auc=0.0,
     )
     assert 0.0 <= r.score <= 1.0
 
@@ -117,12 +133,17 @@ def test_calibrated_similarity_surfaces_calibration_warning_for_degenerate_cell(
     # calibration.py's CALIBRATION_TABLE comment) -- calibrate() itself
     # would warn about this data, and calibrated_similarity must now
     # copy that warning into both detail and reason, not just leave it
-    # sitting undiscoverable in the README's AUC table.
+    # sitting undiscoverable in the README's AUC table. min_auc=0.0
+    # disables the (separate, stronger) AUC gate below so this test can
+    # still reach the .warnings path specifically -- LaBSE/en's real
+    # AUC (0.070) is also below the default min_auc=0.7, so without
+    # this override the result would be "low_discrimination" instead.
     r = calibrated_similarity(
         gold="The capital of Maharashtra is Mumbai.",
         response="The capital of Maharashtra is Mumbai.",
         language="en",
         encoder_name="sentence-transformers/LaBSE",
+        min_auc=0.0,
     )
     assert "calibration_warnings" in r.detail
     assert len(r.detail["calibration_warnings"]) > 0
@@ -139,6 +160,55 @@ def test_calibrated_similarity_no_warning_key_for_clean_cell() -> None:
     )
     assert "calibration_warnings" not in r.detail
     assert "WARNING" not in r.reason
+
+
+# --- min_auc gate (SAFE DEFAULT, added after repeated independent
+# outside review kept finding calibrated_similarity return a clean,
+# confident similar/dissimilar verdict for cells with no real AUC) ---
+
+
+def test_calibrated_similarity_low_auc_cell_is_low_discrimination_by_default() -> None:
+    # multilingual-e5-base/hi has real AUC exactly 0.500 (chance) --
+    # see calibration.py's CALIBRATION_TABLE comment -- but its
+    # in-sample argmax-fitted accuracy (0.632) looks fine, and
+    # calibrate()'s own .warnings guard cannot catch this (it only
+    # checks same-sample fitted accuracy, not AUC). With the default
+    # min_auc=0.7, this must now return low_discrimination, not a
+    # clean similar/dissimilar verdict, regardless of the raw cosine
+    # similarity.
+    r = calibrated_similarity(
+        gold="भारत की राजधानी नई दिल्ली है।",
+        response="भारत की राजधानई दिल्ली है।",
+        language="hi",
+        encoder_name="intfloat/multilingual-e5-base",
+    )
+    assert r.label == "low_discrimination"
+    assert r.passed is False
+    assert r.detail["roc_auc"] < 0.7
+
+
+def test_calibrated_similarity_low_auc_cell_passes_with_min_auc_zero() -> None:
+    r = calibrated_similarity(
+        gold="भारत की राजधानी नई दिल्ली है।",
+        response="भारत की राजधानी नई दिल्ली है।",
+        language="hi",
+        encoder_name="intfloat/multilingual-e5-base",
+        min_auc=0.0,
+    )
+    assert r.label != "low_discrimination"
+
+
+def test_calibrated_similarity_strong_auc_cell_not_low_discrimination() -> None:
+    # multilingual-e5-base/en has real AUC 0.860, well above the
+    # default min_auc=0.7 -- must not be gated.
+    r = calibrated_similarity(
+        gold="The capital of Maharashtra is Mumbai.",
+        response="The capital of Maharashtra is Mumbai.",
+        language="en",
+        encoder_name="intfloat/multilingual-e5-base",
+    )
+    assert r.label != "low_discrimination"
+    assert r.label == "similar"
 
 
 # --- NaN cosine similarity (found by an independent outside review) ---

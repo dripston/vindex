@@ -98,35 +98,77 @@ def test_hinglish_prompt_roman_hinglish_response_matched() -> None:
     assert r.passed is True
 
 
-def test_hinglish_prompt_roman_english_response_is_language_mismatch() -> None:
-    # Prompt is Romanized Hindi (has function words); response is Roman
-    # script but plain English with zero Hindi function words.
+def test_hinglish_prompt_roman_english_response_matches_by_default() -> None:
+    # DEFAULT CHANGED (found by repeated independent outside review,
+    # each recommending the same thing): language_mismatch's false
+    # positive rate is proven and unfixable by a threshold (see
+    # language.py's module docstring), so strict_language_check now
+    # defaults to False -- a Roman-script response to a code-mixed/
+    # Hinglish prompt passes the script check on its own merits,
+    # without also gating on the 14-word Hinglish-detection heuristic.
     r = script_adherence("Mumbai kahan hai?", "Mumbai is the capital of Maharashtra.")
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+def test_hinglish_prompt_roman_english_response_is_language_mismatch_when_strict() -> None:
+    # Opt-in: strict_language_check=True restores the original
+    # hard-fail behavior for a caller who has verified the heuristic
+    # doesn't false-positive on their own data.
+    r = script_adherence(
+        "Mumbai kahan hai?", "Mumbai is the capital of Maharashtra.", strict_language_check=True
+    )
     assert r.label == "language_mismatch"
     assert r.passed is False
 
 
-def test_incidental_single_word_match_false_positive_known_limitation() -> None:
-    # KNOWN LIMITATION (see language.py's module docstring and
-    # metric.py's language_mismatch docstring): a single incidental
-    # function-word match in the PROMPT is enough to flip its bucket to
-    # code-mixed and hard-fail a genuinely correct English response.
-    # "se" only appears because the digit in "Se7en" splits the word.
-    # Pinned here as a documented false positive, not silently assumed
-    # away -- do NOT "fix" this with a naive 2+-word threshold without
-    # re-checking test_hinglish_prompt_roman_english_response_is_language_mismatch
-    # above, which has exactly one function word and must keep passing.
+def test_incidental_single_word_match_is_not_a_false_positive_by_default() -> None:
+    # The false positive this metric's docs and multiple outside
+    # reviews documented ("se" in "Se7en" only exists because a digit
+    # splits the word) no longer hard-fails by default, since
+    # strict_language_check now defaults to False.
     r = script_adherence("Who directed Se7en?", "David Fincher directed that thriller.")
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+def test_incidental_single_word_match_false_positive_known_limitation_when_strict() -> None:
+    # KNOWN LIMITATION, still real under strict_language_check=True
+    # (see language.py's module docstring and metric.py's
+    # script_adherence docstring): a single incidental function-word
+    # match in the PROMPT is enough to flip its bucket to code-mixed
+    # and hard-fail a genuinely correct English response. "se" only
+    # appears because the digit in "Se7en" splits the word. Pinned here
+    # as a documented false positive, not silently assumed away -- do
+    # NOT "fix" this with a naive 2+-word threshold without re-checking
+    # test_hinglish_prompt_roman_english_response_is_language_mismatch_when_strict
+    # above, which has exactly one function word and must keep failing
+    # under strict mode.
+    r = script_adherence(
+        "Who directed Se7en?", "David Fincher directed that thriller.",
+        strict_language_check=True,
+    )
     assert r.label == "language_mismatch"  # wrong: this response is actually correct English
 
 
-def test_ordinary_english_word_matching_hindi_postposition_false_positive() -> None:
+def test_ordinary_english_word_matching_hindi_postposition_is_not_a_false_positive_by_default() -> (
+    None
+):
+    r = script_adherence(
+        "What is the ka in Egyptian belief?", "It is the vital essence of a person."
+    )
+    assert r.label == "matched"
+    assert r.passed is True
+
+
+def test_ordinary_english_word_matching_hindi_postposition_false_positive_when_strict() -> None:
     # KNOWN LIMITATION, same mechanism as above: "ka" is a real, common
     # English word here (Egyptian "ka"), not Hindi -- but it's also a
     # Hindi possessive postposition, and the heuristic can't distinguish
     # the two without real context understanding.
     r = script_adherence(
-        "What is the ka in Egyptian belief?", "It is the vital essence of a person."
+        "What is the ka in Egyptian belief?", "It is the vital essence of a person.",
+        strict_language_check=True,
     )
     assert r.label == "language_mismatch"  # wrong: this response is actually correct English
 

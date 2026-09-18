@@ -15,18 +15,19 @@ from vindex import script_adherence
 
 result = script_adherence(
     prompt="Mumbai kahan hai?",
-    response="Mumbai is the capital of Maharashtra.",
+    response="Mumbai Maharashtra mein hai.",
 )
 
-print(result.label)   # "language_mismatch"
-print(result.passed)  # False
-print(result.reason)  # "prompt is Romanized Hindi; response is Roman-script English."
+print(result.label)   # "matched"
+print(result.passed)  # True
 ```
 
-`script_adherence(prompt, response)` checks whether a response came back
-in the script and language the prompt used -- no reference answer
-needed. Labels: `matched`, `mixed`, `script_mismatch`,
-`language_mismatch`, `empty`.
+`script_adherence(prompt, response, strict_language_check=False)`
+checks whether a response came back in the script and language the
+prompt used -- no reference answer needed. Labels: `matched`, `mixed`,
+`script_mismatch`, `language_mismatch` (only reachable with
+`strict_language_check=True`, see the Limitations section for why it's
+opt-in), `no_script_signal`, `empty`.
 
 ```bash
 pip install vindex[similarity]
@@ -46,7 +47,7 @@ print(result.passed)  # True
 print(result.score)   # cosine similarity, e.g. 0.95
 ```
 
-`calibrated_similarity(gold, response, language, encoder_name=...)`
+`calibrated_similarity(gold, response, language, encoder_name=..., min_auc=0.7)`
 checks semantic closeness to a gold reference, using a threshold
 calibrated per (encoder, language) instead of an uncalibrated 0.5 --
 see the table below and the Limitations section for what "calibrated"
@@ -54,6 +55,19 @@ means here and its own limits. Needs a gold reference, unlike
 `script_adherence`. Requires the `similarity` extra (sentence-
 transformers, transformers, torch -- not installed by plain
 `pip install vindex`).
+
+**SAFE DEFAULT (v0.4.0):** only 3 of the 15 shipped (encoder,
+language) cells have real, threshold-independent AUC >= 0.75 (see the
+table below); several others -- most sharply multilingual-e5-base/hi
+at real AUC exactly 0.500, chance -- look fine on in-sample accuracy
+while having no real discrimination power. By default,
+`calibrated_similarity` now returns `label="low_discrimination",
+passed=False` for any cell whose real AUC is below `min_auc` (default
+0.7), instead of a clean `similar`/`dissimilar` verdict that hides the
+fact that particular cell can't actually tell correct from wrong.
+Pass `min_auc=0.0` to disable this and trust the calibrated threshold
+alone -- only do this after checking the AUC table below for the
+specific cell you're using.
 
 ```bash
 pip install vindex[judge]
@@ -277,20 +291,25 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   by excluding decimal-digit (Unicode category Nd) and danda
   characters when deciding whether a script has real letter content;
   a real sentence that happens to contain Indic digits is unaffected.
-- **`language_mismatch` detection is a v0 heuristic.** It checks for 14
-  hand-picked Hindi function words (`hai`, `hain`, `kya`, `nahi`, ...) in
-  Romanized text. No transliteration-variant coverage, no verb
-  conjugations, no other Romanized Indic languages, not ML-based. One
-  matching word is treated as a signal, not proof -- and one incidental
-  match in the PROMPT is enough to flip the whole prompt's bucket and
-  hard-fail a genuinely correct English response: `"Who directed Se7en?"`
-  contains `"se"` only because the digit splits the word, and
-  `"What is the ka in Egyptian belief?"` contains `"ka"` as an ordinary
-  English word -- both wrongly trigger `language_mismatch`. A stricter
-  "require 2+ matches" rule was tried and reverted: it also breaks short,
-  genuine Hinglish questions, including this README's own
+- **`language_mismatch` detection is a v0 heuristic, and OFF BY
+  DEFAULT since v0.4.0** (`strict_language_check=False`). It checks
+  for 14 hand-picked Hindi function words (`hai`, `hain`, `kya`,
+  `nahi`, ...) in Romanized text. No transliteration-variant coverage,
+  no verb conjugations, no other Romanized Indic languages, not
+  ML-based. One matching word is treated as a signal, not proof -- and
+  one incidental match in the PROMPT is enough to flip the whole
+  prompt's bucket and hard-fail a genuinely correct English response:
+  `"Who directed Se7en?"` contains `"se"` only because the digit
+  splits the word, and `"What is the ka in Egyptian belief?"` contains
+  `"ka"` as an ordinary English word -- both wrongly trigger
+  `language_mismatch` if `strict_language_check=True`. A stricter
+  "require 2+ matches" rule was tried and reverted: it also breaks
+  short, genuine Hinglish questions, including this README's own
   `"Mumbai kahan hai?"` example above, which has exactly one function
-  word. Real, unresolved trade-off of the v0 approach.
+  word. Because the false-positive rate can't be fixed by a threshold,
+  it's an opt-in strict mode rather than the default -- pass
+  `strict_language_check=True` only after verifying this heuristic
+  doesn't false-positive on your own data.
 - **Devanagari's danda (।) is shared punctuation.** It lives in the
   Devanagari Unicode block but is reused as a sentence-ending mark in
   Bengali, Odia, Gurmukhi, and others, so a couple of stray
@@ -352,7 +371,12 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
   below chance (mean AUC across all 15 is 0.525). A calibrated-per-cell
   accuracy number is not, by itself, evidence a cell has real signal;
   see the AUC column in "The argument for calibrated_similarity" above
-  before trusting any shipped threshold.
+  before trusting any shipped threshold. **Since v0.4.0, this is
+  enforced, not just documented**: `min_auc=0.7` is the default, so a
+  cell below that (12 of 15, including e5-base/hi) returns
+  `label="low_discrimination", passed=False` instead of a clean
+  similar/dissimilar verdict. Pass `min_auc=0.0` to opt back into
+  trusting the calibrated threshold alone.
 - **`calibrated_similarity` measures closeness, not correctness.** Two
   answers can be topically similar and still disagree on the actual
   fact -- this metric will not catch that. It also requires a gold

@@ -267,6 +267,20 @@ def check_trace(
     source = coerce_text(source)
     trace = coerce_text(trace)
     words = trap_words if trap_words is not None else load_trap_words()
+    for word in words:
+        if not isinstance(word, TrapWord):
+            # FIXED (a real bug, found by an independent outside
+            # review): passing a list of plain strings/ints instead of
+            # TrapWord objects (a caller typo, or an override built
+            # from a differently-shaped source) used to fail deep
+            # inside the matching loop with a bare
+            # `AttributeError: 'str' object has no attribute 'term'`,
+            # the one public entry point in this package with no
+            # up-front validation of its own override parameter.
+            raise TypeError(
+                f"trap_words must contain only TrapWord instances, got {word!r} "
+                f"({type(word).__name__})"
+            )
 
     if source.strip() == "" or trace.strip() == "":
         return MetricResult(

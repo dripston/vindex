@@ -33,16 +33,27 @@ class ScriptAdherenceMetric(BaseMetric):
     threshold is unused in the pass/fail sense (script_adherence's own
     `passed` decides success) but kept for DeepEval's is_successful()
     plumbing and to satisfy BaseMetric's interface.
+
+    strict_language_check passes through to script_adherence (default
+    False -- see its docstring for why: language_mismatch's false
+    positive rate is proven and unfixable by a threshold). Pass True
+    only if you've verified the 14-word Hinglish heuristic doesn't
+    false-positive on your own data.
     """
 
-    def __init__(self, threshold: float = 0.5) -> None:
+    def __init__(self, threshold: float = 0.5, strict_language_check: bool = False) -> None:
         self.threshold = threshold
+        self.strict_language_check = strict_language_check
         self.score = None
         self.reason = None
         self.success = None
 
     def measure(self, test_case: LLMTestCase, *args: Any, **kwargs: Any) -> float:
-        result = script_adherence(test_case.input, test_case.actual_output)
+        result = script_adherence(
+            test_case.input,
+            test_case.actual_output,
+            strict_language_check=self.strict_language_check,
+        )
         self.score = result.score
         self.reason = f"[{result.label}] {result.reason}"
         self.success = result.passed

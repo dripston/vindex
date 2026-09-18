@@ -92,6 +92,7 @@ def calibrated_similarity(
     language: str,
     encoder_name: str = "",
     allow_muril: bool = False,
+    min_auc: float = 0.7,
 ) -> MetricResult:
     """Is `response` semantically close enough to `gold`, per a
     calibrated threshold for (encoder_name, language)?
@@ -107,6 +108,28 @@ def calibrated_similarity(
     metric falls back to a 0.5 threshold and says so plainly in
     `reason` and `detail` -- it does not silently pretend to be
     calibrated when it isn't.
+
+    min_auc (default 0.7 -- SAFE DEFAULT, added after repeated
+    independent outside review kept finding the same gap): if the
+    shipped cell's real, threshold-independent ROC AUC
+    (`CalibratedThreshold.roc_auc`) is below this, the result's label
+    is `"low_discrimination"` with `passed=False`, REGARDLESS of
+    whether the raw cosine similarity happens to clear the calibrated
+    threshold. Multiple reviews independently found the same failure
+    mode: `calibrated_similarity` returning a clean `label="similar",
+    passed=True` for cells like multilingual-e5-base/hi, whose real AUC
+    is exactly 0.500 (chance) -- an in-sample argmax-fitted threshold
+    can look fine (0.632 accuracy here) while the encoder has no real
+    ability to discriminate correct from wrong on that (encoder,
+    language) pair. Of the 15 shipped cells, only 3 clear AUC 0.75
+    (mpnet-v2/en, e5-base/en, MiniLM-L6/hinglish); the default of 0.7
+    is deliberately just below that bar so those 3 pass and everything
+    else is flagged. Set min_auc=0.0 to disable this check and restore
+    the previous (pre-this-parameter) behavior of trusting the
+    calibrated threshold alone -- only do this if you have verified the
+    specific (encoder, language) cell you're using on your own held-out
+    data. See README.md's "argument for calibrated_similarity" section
+    for the full AUC table this threshold is drawn from.
     """
     gold = coerce_text(gold)
     response = coerce_text(response)
@@ -180,12 +203,35 @@ def calibrated_similarity(
             detail["calibration_warnings"] = calibration.warnings
 
     if calibrated:
+        assert calibration is not None  # calibrated is only True when calibration was found
+        if calibration.roc_auc is not None and calibration.roc_auc < min_auc:
+            # SAFE DEFAULT (see calibrated_similarity's min_auc
+            # docstring): this cell's real AUC is below the bar, so
+            # don't return a confident similar/dissimilar verdict no
+            # matter what the raw cosine similarity says.
+            detail["roc_auc"] = calibration.roc_auc
+            return MetricResult(
+                score=score,
+                passed=False,
+                label="low_discrimination",
+                reason=(
+                    f"({encoder_name}, {language})'s real ROC AUC is "
+                    f"{calibration.roc_auc:.3f}, below min_auc={min_auc} -- this "
+                    "(encoder, language) pair has little to no real ability to "
+                    "discriminate correct from wrong answers, regardless of "
+                    f"where cosine similarity {score:.3f} falls relative to the "
+                    f"calibrated threshold {threshold:.3f}. See README.md's "
+                    "\"argument for calibrated_similarity\" AUC table, or pass "
+                    "min_auc=0.0 to disable this check."
+                ),
+                detail=detail,
+            )
         reason = (
             f"cosine similarity {score:.3f} "
             f"{'>=' if passed else '<'} calibrated threshold "
             f"{threshold:.3f} for ({encoder_name}, {language})."
         )
-        if calibration is not None and calibration.warnings:
+        if calibration.warnings:
             # Found by an independent outside review: CalibratedThreshold
             # gained a .warnings field for calibrate()'s own callers, but
             # the shipped CALIBRATION_TABLE cells never surfaced any --

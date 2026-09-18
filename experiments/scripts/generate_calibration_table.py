@@ -29,8 +29,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from vindex.calibration import calibrate  # noqa: E402
 
-CSV_PATH = os.path.join(
+PER_CASE_CSV_PATH = os.path.join(
     os.path.dirname(__file__), "..", "results_clean", "discrimination_per_case.csv"
+)
+SUMMARY_CSV_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "results_clean", "discrimination_summary.csv"
 )
 
 ENCODERS = [
@@ -51,7 +54,7 @@ def load_scores() -> dict[tuple[str, str], tuple[list[float], list[float]]]:
     by_cell: dict[tuple[str, str], tuple[list[float], list[float]]] = {
         (e, lang): ([], []) for e in ENCODERS for lang in LANGUAGES
     }
-    with open(CSV_PATH, encoding="utf-8") as f:
+    with open(PER_CASE_CSV_PATH, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             if row["gold_mode"] != "english_gold" or row["gold_length"] != "full_sentence":
                 continue
@@ -66,19 +69,34 @@ def load_scores() -> dict[tuple[str, str], tuple[list[float], list[float]]]:
     return by_cell
 
 
+def load_auc() -> dict[tuple[str, str], float]:
+    """(encoder, language) -> real ROC AUC, from
+    discrimination_summary.csv's roc_auc_hard column, same
+    english_gold + full_sentence slice."""
+    by_cell = {}
+    with open(SUMMARY_CSV_PATH, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["gold_mode"] != "english_gold" or row["gold_length"] != "full_sentence":
+                continue
+            by_cell[(row["encoder"], row["variant"])] = float(row["roc_auc_hard"])
+    return by_cell
+
+
 def main() -> None:
     by_cell = load_scores()
+    auc_by_cell = load_auc()
     for encoder in ENCODERS:
         print(f'    "{encoder}": {{')
         for lang in LANGUAGES:
             correct, wrong = by_cell[(encoder, lang)]
             result = calibrate(correct, wrong)
             warnings_repr = repr(result.warnings) if result.warnings else "()"
+            auc = auc_by_cell[(encoder, lang)]
             print(
                 f'        "{lang}": CalibratedThreshold('
                 f"{result.threshold}, {result.accuracy_at_threshold}, "
                 f"{result.accuracy_at_default}, n_cases={result.n_cases}, "
-                f"warnings={warnings_repr}),"
+                f"warnings={warnings_repr}, roc_auc={auc}),"
             )
         print("    },")
 

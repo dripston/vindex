@@ -115,6 +115,37 @@ def test_e5_base_en_cell_has_no_warnings() -> None:
     assert cell.warnings == ()
 
 
+# --- roc_auc field (added after repeated independent outside review
+# kept finding that calibrate()'s .warnings guard, based on same-sample
+# fitted accuracy, cannot detect a cell with weak real AUC) ---
+
+
+def test_e5_base_hi_cell_has_chance_level_auc() -> None:
+    # This cell's fitted accuracy (0.632) looks fine, but real AUC is
+    # exactly 0.500 -- chance. This is the cell every review of this
+    # project independently flagged as the sharpest example of
+    # accuracy-looks-fine-but-AUC-says-chance.
+    cell = CALIBRATION_TABLE["intfloat/multilingual-e5-base"]["hi"]
+    assert abs(cell.roc_auc - 0.5) < 0.01
+
+
+def test_mpnet_en_cell_has_strong_auc() -> None:
+    cell = CALIBRATION_TABLE["sentence-transformers/paraphrase-multilingual-mpnet-base-v2"]["en"]
+    assert cell.roc_auc >= 0.9
+
+
+def test_labse_en_cell_has_inverted_auc() -> None:
+    cell = CALIBRATION_TABLE["sentence-transformers/LaBSE"]["en"]
+    assert cell.roc_auc < 0.5
+
+
+def test_all_shipped_cells_have_a_roc_auc() -> None:
+    for by_language in CALIBRATION_TABLE.values():
+        for cell in by_language.values():
+            assert cell.roc_auc is not None
+            assert 0.0 <= cell.roc_auc <= 1.0
+
+
 # --- calibrate() ---
 
 

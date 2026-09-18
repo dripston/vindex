@@ -176,11 +176,37 @@ def _prompt_bucket(prompt: str) -> str:
     return "empty"
 
 
-def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
+def script_adherence(
+    prompt: str | None, response: str | None, strict_language_check: bool = False
+) -> MetricResult:
     """Did response come back in the script/language the prompt used?
 
     No reference answer needed -- this checks a property of the response
     itself (and its relation to the prompt), not response correctness.
+
+    strict_language_check (default False -- SAFE DEFAULT, changed after
+    repeated independent outside review): when True, restores the
+    original `language_mismatch` hard-fail behavior -- a code-mixed/
+    Romanized-Hindi prompt (per `language.looks_like_hinglish`, a
+    14-word heuristic) answered in plain Roman-script English scores
+    `passed=False`. This heuristic has a PROVEN, unfixed false-positive
+    rate: a single incidental function-word match anywhere in the
+    prompt is enough to trigger it, and this project's own README
+    documents real cases where a genuinely correct English answer gets
+    hard-failed as a result ("Who directed Se7en?" matches "se" only
+    because a digit splits the word; "What is the ka in Egyptian
+    belief?" matches "ka" as an ordinary English word). Multiple
+    independent reviews of this package concluded the same thing: use
+    this metric as a script/modality gate, and turn `language_mismatch`
+    off unless you have verified it doesn't false-positive on your own
+    data. Default changed to reflect that recommendation directly,
+    rather than requiring every caller to have read five rounds of
+    review to know to disable it. When False (the default), a case that
+    would have been `language_mismatch` is instead scored `matched` (a
+    Roman-script response to a code-mixed/Hinglish prompt still passes
+    the script check, which is what actually happened) -- pass
+    `strict_language_check=True` to opt back into the stricter,
+    documented-false-positive-prone behavior.
     """
     prompt = coerce_text(prompt)
     response = coerce_text(response)
@@ -272,23 +298,30 @@ def script_adherence(prompt: str | None, response: str | None) -> MetricResult:
 
     # romanized or code-mixed: both accept "roman" or "mixed" responses.
     if response_label in ("roman", "mixed"):
-        if bucket == "code-mixed" and response_label == "roman" and looks_like_hinglish(prompt):
+        if (
+            strict_language_check
+            and bucket == "code-mixed"
+            and response_label == "roman"
+            and looks_like_hinglish(prompt)
+        ):
             if not looks_like_hinglish(response):
-                # Tried, and reverted, during this same fix pass: a
+                # Tried, and reverted, during an earlier fix pass: a
                 # "downgrade to a soft label when the prompt has only 1
                 # function-word match" rule. It does not work --
                 # this package's own canonical Hinglish case ("Mumbai
                 # kahan hai?", which SHOULD hard-fail an all-English
-                # response) has exactly one match ("hai"), the same
-                # count as the "Se7en"/"ka" false positives (which
-                # SHOULD NOT hard-fail). Match count on the prompt does
-                # not distinguish a genuine single-function-word
-                # Hinglish question from an incidental match -- see
-                # language.py's module docstring for why a 2+-match
-                # threshold was already tried and reverted for the same
-                # underlying reason. Left as a hard fail, documented as
-                # a known, unresolved false-positive rate in
-                # README.md's Limitations section.
+                # response under strict_language_check=True) has
+                # exactly one match ("hai"), the same count as the
+                # "Se7en"/"ka" false positives (which SHOULD NOT
+                # hard-fail). Match count on the prompt does not
+                # distinguish a genuine single-function-word Hinglish
+                # question from an incidental match -- see language.py's
+                # module docstring for why a 2+-match threshold was
+                # already tried and reverted for the same underlying
+                # reason. Because this can't be fixed by a threshold,
+                # it is now opt-in (strict_language_check=True) rather
+                # than the default -- see script_adherence's own
+                # docstring for why the default changed.
                 return MetricResult(
                     score=0.0,
                     passed=False,

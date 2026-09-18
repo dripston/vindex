@@ -245,6 +245,18 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str, str]:
         # have -- reject explicitly, consistent with every other
         # malformed shape degrading to judge_error.
         raise ValueError(f"score {raw_score_field!r} is a boolean, not a number")
+    if not isinstance(raw_score_field, (int, float)):
+        # FIXED (a real bug, found by an independent outside review):
+        # float("5") == 5.0 succeeds silently, so {"score": "5"} (a
+        # JSON string, not a number) passed through as a clean score=1.0
+        # pass -- exactly the "didn't follow the numeric contract"
+        # failure the bool check above exists to catch, just via a
+        # different JSON type it missed. Reject any score that is not
+        # already a JSON number (int/float), consistent with the bool
+        # rejection immediately above and the list/dict rejection that
+        # already happens implicitly (float(["a"]) raises TypeError,
+        # caught by indic_judge's except tuple).
+        raise ValueError(f"score {raw_score_field!r} is not a JSON number")
     score_value = float(raw_score_field)
     try:
         raw_score = int(round(score_value))

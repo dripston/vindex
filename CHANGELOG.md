@@ -1,5 +1,70 @@
 # Changelog
 
+## v0.4.0
+
+**Safe defaults, not just documented caveats.** After six independent
+outside reviews across v0.2.1-0.3.1, the same shape of finding kept
+recurring: the code was correct and the documentation was honest, but
+a caller who didn't read five rounds of review history would get the
+UNSAFE configuration by default and have to opt into the safe one.
+This release inverts that -- the safe behavior is now the default, and
+the previously-default risky behavior is opt-in. Two real bugs fixed
+alongside this, found by the same reviews.
+
+**Breaking default changes (same function signatures, different
+default behavior):**
+
+- **`script_adherence` gained `strict_language_check: bool = False`.**
+  `language_mismatch`'s hard-fail (a code-mixed/Hinglish prompt
+  answered in plain English scores `passed=False`) is now OFF by
+  default. This heuristic's false-positive rate is proven and
+  cannot be fixed by a threshold (see `language.py`'s module
+  docstring -- both a 1-word and a 2+-word threshold were tried and
+  broke something real). Every outside review that reached a
+  production verdict on this metric independently recommended turning
+  it off; it's now off unless a caller explicitly opts in with
+  `strict_language_check=True` after verifying the heuristic against
+  their own data. `ScriptAdherenceMetric` (DeepEval adapter) gained the
+  same parameter, same default.
+- **`calibrated_similarity` gained `min_auc: float = 0.7`.** Of the 15
+  shipped (encoder, language) cells, only 3 clear real ROC AUC 0.75
+  (mpnet-v2/en, e5-base/en, MiniLM-L6/hinglish); several others --
+  most sharply multilingual-e5-base/hi at real AUC exactly 0.500,
+  chance -- have an in-sample argmax-fitted accuracy that looks
+  reasonable while having no actual discrimination power.
+  `calibrate()`'s own `.warnings` guard (added in v0.2.2) cannot catch
+  this, because it checks same-sample fitted accuracy, not AUC. Now: a
+  cell whose real, threshold-independent AUC (`CalibratedThreshold.roc_auc`,
+  a new field, populated from `discrimination_summary.csv`'s
+  `roc_auc_hard` column for all 15 shipped cells) is below `min_auc`
+  returns `label="low_discrimination", passed=False` regardless of
+  where the raw cosine similarity falls relative to the calibrated
+  threshold. Pass `min_auc=0.0` to restore the previous behavior of
+  trusting the calibrated threshold alone.
+
+**Two real bugs fixed:**
+
+- **`indic_judge` silently accepted a JSON string as a score.**
+  `{"score": true}` was already rejected (v0.2.2) as not following the
+  numeric contract, but `{"score": "5"}` (a JSON string, not a number)
+  passed through `float("5")` and was accepted as a clean score=1.0
+  pass -- the exact same class of contract violation the bool
+  rejection exists to catch, via a different JSON type it missed. Now
+  rejected explicitly: only a genuine JSON number (`int`/`float`,
+  excluding `bool`) is accepted.
+- **`check_trace(trap_words=...)` had no validation of its override
+  parameter.** Passing a list of plain strings/ints instead of
+  `TrapWord` objects failed deep inside the matching loop with a bare
+  `AttributeError: 'str' object has no attribute 'term'`. Now raises a
+  clear `TypeError` naming the bad element up front.
+
+**Considered and NOT changed:** `indic_judge` treating `{"score": 0}`
+as malformed (`judge_error`) rather than "definitively wrong" --
+`judge_rubric.py`'s prompt explicitly asks for a 1-5 score, so a judge
+that emits 0 has not followed the documented contract any more than
+one emitting 100 has; this is the contract being enforced correctly,
+not a bug conflating two different things.
+
 ## v0.3.1
 
 **Two fixes found by a fifth independent outside review** (installed
