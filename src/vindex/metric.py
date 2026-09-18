@@ -93,11 +93,31 @@ Labels:
 
 from __future__ import annotations
 
+import unicodedata
+
 from vindex.language import looks_like_hinglish
 from vindex.result import MetricResult
 from vindex.script import SCRIPT_RANGES, classify, count_scripts, is_only_danda_punctuation
 
 _INDIC_SCRIPTS = frozenset(SCRIPT_RANGES)
+
+
+def _non_letter_script_count(text: str, script_chars: int, script_pattern: str) -> int:
+    """script_chars minus any character that isn't actually a letter in
+    that script -- decimal digits (Unicode category Nd) and the danda/
+    double danda (।॥, shared punctuation across several Indic scripts,
+    see script.py's module docstring) -- see _has_no_script_signal's
+    docstring for why this matters."""
+    import re
+
+    from vindex.script import _DANDA_RE
+
+    non_letters_in_script = sum(
+        1
+        for c in re.findall(f"[{script_pattern}]", text)
+        if unicodedata.category(c) == "Nd" or _DANDA_RE.match(c)
+    )
+    return script_chars - non_letters_in_script
 
 
 def _has_no_script_signal(text: str) -> bool:
@@ -108,11 +128,40 @@ def _has_no_script_signal(text: str) -> bool:
     response that is purely danda punctuation (see
     script.is_only_danda_punctuation) -- classify() confidently returns
     "devanagari" for "।" alone, but a lone sentence-ending mark is not a
-    real Devanagari response either."""
+    real Devanagari response either.
+
+    FIXED (a real bug, found by an independent outside review): every
+    Indic script's Unicode block includes that script's own decimal
+    digits (e.g. Devanagari 0-9 are U+0966-U+096F, inside the same
+    U+0900-U+097F block as the letters). count_scripts() counts them as
+    ordinary script characters, so a response that is purely Indic
+    digits -- "१४०००००००००" for a Hindi prompt, "১২৩" for a Bengali one
+    -- had dominant_n > 0 and classify() confidently returned
+    "devanagari"/"bengali"/etc., the same as a real Devanagari sentence.
+    ASCII digits ("42") were already caught correctly (they fall into
+    other_chars, not any script bucket) -- only the Indic-digit case was
+    missed. This also folds in a combination the pre-existing danda-only
+    check (is_only_danda_punctuation) didn't cover on its own: a
+    response that is an Indic digit plus a danda (e.g. "१।") has a
+    non-danda, non-digit character in the block, so
+    is_only_danda_punctuation alone said False even though there is
+    still no real letter anywhere. Now: a script's characters only
+    count as real script signal here if at least one of them is a
+    genuine letter -- not a decimal digit (category Nd) and not a
+    danda/double danda. A response that mixes real letters with Indic
+    digits (e.g. an actual Hindi sentence containing "१४०") is
+    unaffected -- this only changes the verdict for responses with no
+    real letters at all."""
     if is_only_danda_punctuation(text):
         return True
     counts = count_scripts(text)
-    dominant_n = max((counts[f"{name}_chars"] for name in SCRIPT_RANGES), default=0)
+    dominant_n = max(
+        (
+            _non_letter_script_count(text, counts[f"{name}_chars"], SCRIPT_RANGES[name])
+            for name in SCRIPT_RANGES
+        ),
+        default=0,
+    )
     return dominant_n == 0 and counts["latin_alpha_chars"] == 0
 
 

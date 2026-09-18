@@ -102,3 +102,37 @@ def test_calibrated_similarity_score_is_bounded() -> None:
         encoder_name=_ENCODER,
     )
     assert 0.0 <= r.score <= 1.0
+
+
+# --- degenerate-cell warnings (found by an independent outside review:
+# CalibratedThreshold.warnings existed for calibrate()'s own callers
+# but the shipped CALIBRATION_TABLE never surfaced any) ---
+
+
+def test_calibrated_similarity_surfaces_calibration_warning_for_degenerate_cell() -> None:
+    # LaBSE/en's shipped cell has fitted accuracy at chance (see
+    # calibration.py's CALIBRATION_TABLE comment) -- calibrate() itself
+    # would warn about this data, and calibrated_similarity must now
+    # copy that warning into both detail and reason, not just leave it
+    # sitting undiscoverable in the README's AUC table.
+    r = calibrated_similarity(
+        gold="The capital of Maharashtra is Mumbai.",
+        response="The capital of Maharashtra is Mumbai.",
+        language="en",
+        encoder_name="sentence-transformers/LaBSE",
+    )
+    assert "calibration_warnings" in r.detail
+    assert len(r.detail["calibration_warnings"]) > 0
+    assert "WARNING" in r.reason
+
+
+def test_calibrated_similarity_no_warning_key_for_clean_cell() -> None:
+    # multilingual-e5-base/en is a clean, strong cell -- no warning.
+    r = calibrated_similarity(
+        gold="The capital of Maharashtra is Mumbai.",
+        response="The capital of Maharashtra is Mumbai.",
+        language="en",
+        encoder_name="intfloat/multilingual-e5-base",
+    )
+    assert "calibration_warnings" not in r.detail
+    assert "WARNING" not in r.reason

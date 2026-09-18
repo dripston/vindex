@@ -37,11 +37,23 @@ def test_default_encoder_is_in_the_table() -> None:
     assert DEFAULT_ENCODER in CALIBRATION_TABLE
 
 
-def test_every_cell_states_n_cases_as_ten() -> None:
-    # Milestone 3.1: "state plainly it came from 10 cases per cell."
+def test_every_cell_states_a_small_case_count() -> None:
+    # Milestone 3.1: "state plainly it came from ~10 cases per cell."
+    # Regenerated from real per-case data (see calibration.py's comment
+    # above CALIBRATION_TABLE): "hi" cells are 9, not 10 -- one task's
+    # english_gold/full_sentence Hindi variant has 9 correct-answer
+    # rows in discrimination_per_case.csv, not 10. The old hand-typed
+    # table used the CalibratedThreshold.n_cases default of 10
+    # everywhere, which was never actually checked against the real
+    # per-case count until this regeneration.
     for by_language in CALIBRATION_TABLE.values():
         for cell in by_language.values():
-            assert cell.n_cases == 10
+            assert cell.n_cases in (9, 10)
+
+
+def test_hi_cells_have_nine_cases_not_ten() -> None:
+    for by_language in CALIBRATION_TABLE.values():
+        assert by_language["hi"].n_cases == 9
 
 
 # --- get_threshold ---
@@ -78,6 +90,29 @@ def test_muril_warning_states_the_two_numbers() -> None:
 def test_muril_cells_score_at_or_near_chance_at_default() -> None:
     for cell in CALIBRATION_TABLE[MURIL_MODEL_NAME].values():
         assert cell.accuracy_at_default <= 0.55
+
+
+# --- shipped table warnings (found by an independent outside review:
+# CalibratedThreshold.warnings existed but the shipped table never
+# populated it -- now regenerated from real per-case data, see the
+# comment above CALIBRATION_TABLE for exactly what calibrate()'s guard
+# does and doesn't catch) ---
+
+
+def test_labse_en_cell_warns_at_or_below_chance() -> None:
+    cell = CALIBRATION_TABLE["sentence-transformers/LaBSE"]["en"]
+    assert any("at or below chance" in w for w in cell.warnings)
+
+
+def test_muril_en_cell_warns_at_or_below_chance() -> None:
+    cell = CALIBRATION_TABLE[MURIL_MODEL_NAME]["en"]
+    assert any("at or below chance" in w for w in cell.warnings)
+
+
+def test_e5_base_en_cell_has_no_warnings() -> None:
+    # A genuinely strong, clean cell -- no warning.
+    cell = CALIBRATION_TABLE["intfloat/multilingual-e5-base"]["en"]
+    assert cell.warnings == ()
 
 
 # --- calibrate() ---

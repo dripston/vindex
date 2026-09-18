@@ -253,17 +253,29 @@ reproduce this table: `experiments/README.md`'s Milestone 3 section.
 
 - **9 scripts recognized, nothing else.** Devanagari, Kannada, Tamil,
   Telugu, Bengali, Gujarati, Malayalam, Odia, Gurmukhi, plus Latin.
-  Anything else (Cyrillic, CJK, emoji, digits, punctuation-only text)
-  has no script bucket of its own and falls through to `classify()`'s
-  `"mixed"` label -- this is a real gap, not a rare edge case, if your
-  data has other scripts in it. `script_adherence` used to then also
-  count that fallback as a PASS for romanized/code-mixed prompts (an
-  emoji-only or CJK-only response scored `passed=True`) -- fixed: a
-  response with no alphabetic content in any recognized script now
-  scores `label="no_script_signal", passed=False` instead, distinct
+  Anything else (Cyrillic, CJK, emoji, ASCII digits, punctuation-only
+  text) has no script bucket of its own and falls through to
+  `classify()`'s `"mixed"` label -- this is a real gap, not a rare edge
+  case, if your data has other scripts in it. `script_adherence` used
+  to then also count that fallback as a PASS for romanized/code-mixed
+  prompts (an emoji-only or CJK-only response scored `passed=True`) --
+  fixed: a response with no alphabetic content in any recognized script
+  now scores `label="no_script_signal", passed=False` instead, distinct
   from genuine code-mixing (which always has real Latin or Indic
   letters). The underlying script-recognition gap above is unchanged;
-  only the silent pass on top of it is fixed.
+  only the silent pass on top of it is fixed. **Indic digits are
+  different from ASCII digits here, and were a separate real bug**
+  (found by an independent outside review, fixed after the
+  no_script_signal label shipped): each Indic script's own decimal
+  digits live inside that script's own Unicode block (e.g. Devanagari
+  ०-९ are in the same block as the letters), so a response that is
+  purely Devanagari digits ("१४०००००००००") was NOT caught by the
+  no_script_signal fix above -- it has real characters in the
+  Devanagari block, so `classify()` confidently called it
+  `"devanagari"`, the same verdict as a real Devanagari sentence. Fixed
+  by excluding decimal-digit (Unicode category Nd) and danda
+  characters when deciding whether a script has real letter content;
+  a real sentence that happens to contain Indic digits is unaffected.
 - **`language_mismatch` detection is a v0 heuristic.** It checks for 14
   hand-picked Hindi function words (`hai`, `hain`, `kya`, `nahi`, ...) in
   Romanized text. No transliteration-variant coverage, no verb

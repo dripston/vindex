@@ -36,6 +36,25 @@ install via `pip install vindex[similarity]`. Calling this function
 without them installed raises ImportError from the underlying import,
 not a custom vindex error, since there is nothing vindex-specific to
 add to that message.
+
+DEGENERATE-CELL WARNINGS (fixed after an independent outside review
+found this metric silently returned a clean "similar"/"dissimilar"
+label even for shipped (encoder, language) cells with no real
+discrimination, e.g. LaBSE/en): calibration.CALIBRATION_TABLE's
+entries now carry real, calibrate()-computed `.warnings` (see
+calibration.py's module comment above CALIBRATION_TABLE for exactly
+what triggers one and what doesn't). When the cell used has any, this
+function copies them into `detail["calibration_warnings"]` and appends
+them to `reason` -- so a caller reading only `reason`, or only
+`detail`, both see it, not just someone who separately reads the
+README's AUC table. Note this does NOT catch every weak cell: it
+reuses calibrate()'s own guard (same-sample fitted accuracy at or
+below chance), which is a weaker signal than the threshold-independent
+ROC AUC in README.md's "argument for calibrated_similarity" table --
+a cell can fit above chance in-sample and still have near-chance real
+AUC (e.g. multilingual-e5-base/hi), and that case is NOT warned about
+here. Check the README's AUC table for the full picture; this warning
+only catches the most degenerate cells.
 """
 
 from __future__ import annotations
@@ -123,6 +142,8 @@ def calibrated_similarity(
     if calibration is not None:
         detail["calibration_accuracy_at_threshold"] = calibration.accuracy_at_threshold
         detail["calibration_n_cases"] = calibration.n_cases
+        if calibration.warnings:
+            detail["calibration_warnings"] = calibration.warnings
 
     if calibrated:
         reason = (
@@ -130,6 +151,17 @@ def calibrated_similarity(
             f"{'>=' if passed else '<'} calibrated threshold "
             f"{threshold:.3f} for ({encoder_name}, {language})."
         )
+        if calibration is not None and calibration.warnings:
+            # Found by an independent outside review: CalibratedThreshold
+            # gained a .warnings field for calibrate()'s own callers, but
+            # the shipped CALIBRATION_TABLE cells never surfaced any --
+            # so a caller using the shipped table for a degenerate cell
+            # (e.g. LaBSE/en, fitted accuracy at chance) got a clean-
+            # looking "similar"/"dissimilar" result with no indication
+            # the underlying calibration itself is suspect. Now:
+            # whatever calibrate() would have warned about this cell's
+            # own data is surfaced here too, in both detail and reason.
+            reason += " WARNING: " + " ".join(calibration.warnings)
         label = "similar" if passed else "dissimilar"
     else:
         reason = (

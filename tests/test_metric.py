@@ -347,3 +347,58 @@ def test_real_devanagari_response_with_trailing_danda_is_unaffected() -> None:
     r = script_adherence("राजधानी क्या है?", "नई दिल्ली है।")
     assert r.label == "matched"
     assert r.passed is True
+
+
+# --- Indic-digit-only response (found by an independent outside review) ---
+
+
+def test_devanagari_numerals_only_response_is_no_script_signal() -> None:
+    # Regression: every Indic script's Unicode block includes that
+    # script's own decimal digits (Devanagari 0-9 are U+0966-U+096F,
+    # inside the same block as the letters), so count_scripts() counted
+    # them as real script characters. "१४०००००००००" (all Devanagari
+    # digits) had dominant_n > 0 and classify() confidently returned
+    # "devanagari" -- the same verdict as a real Devanagari sentence,
+    # even though there is no actual Devanagari letter anywhere. ASCII
+    # digits ("42") were already correctly caught (they fall into
+    # other_chars) -- only the Indic-digit case was missed.
+    r = script_adherence("भारत की जनसंख्या कितनी है?", "१४०००००००००")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_devanagari_numeral_plus_danda_response_is_no_script_signal() -> None:
+    # Regression: a digit-plus-danda response ("१।") wasn't caught by
+    # is_only_danda_punctuation alone (the digit is a non-danda
+    # character in the block, so that check alone said False) -- needs
+    # both the digit exclusion and the danda exclusion together.
+    r = script_adherence("कितने?", "१।")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_bengali_numerals_only_response_is_no_script_signal() -> None:
+    r = script_adherence("বাংলাদেশের রাজধানী কোথায়?", "১২৩")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_tamil_numerals_only_response_is_no_script_signal() -> None:
+    r = script_adherence("தலைநகரம் எது?", "௧௨௩")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_kannada_numerals_only_response_is_no_script_signal() -> None:
+    r = script_adherence("ರಾಜಧಾನಿ ಯಾವುದು?", "೧೨೩")
+    assert r.label == "no_script_signal"
+    assert r.passed is False
+
+
+def test_devanagari_sentence_containing_numerals_is_unaffected() -> None:
+    # The digit fix must not affect a real Devanagari sentence that
+    # happens to contain Devanagari digits -- only digit-ONLY (or
+    # digit-plus-danda-only) responses are affected.
+    r = script_adherence("भारत की जनसंख्या कितनी है?", "भारत की जनसंख्या १४० करोड़ है।")
+    assert r.label == "matched"
+    assert r.passed is True
