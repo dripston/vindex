@@ -1,44 +1,53 @@
 # vindex
 
-Evaluation metrics for Indic and code-mixed LLM output.
+**Evaluation metrics for Indic and code-mixed LLM output** -- script
+adherence, calibrated semantic similarity, a Hindi-aware LLM judge, and
+a deterministic mistranslation detector, each backed by a measured
+finding, not an assumption.
 
-## The finding this package is built around
+[![PyPI](https://img.shields.io/pypi/v/vindex)](https://pypi.org/project/vindex/)
+[![CI](https://github.com/dripston/vindex/actions/workflows/ci.yml/badge.svg)](https://github.com/dripston/vindex/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/vindex)](https://pypi.org/project/vindex/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Same model, same 30 questions, one system-prompt change. The first
-prompt ("reply in the same language and script the user used") is
-ambiguous enough that a Romanized-Hindi ("Hinglish") prompt gets
-answered in Devanagari 4 times out of 5. A strict, script-forbidding
-prompt fixes it completely -- and most teams never notice, because
-whoever reviews the outputs usually reads Hindi fine even when their
-actual users typed in Roman script because that's what they're
-comfortable with.
+## Why this exists
 
-| variant  | rate, original prompt | rate, strict prompt |
-|----------|-----------------------:|---------------------:|
-| en       | 1.000                  | 1.000                 |
-| hi       | 0.900                  | 0.900                 |
-| hinglish | 0.200                  | 1.000                 |
+Same model, same 30 questions, one system-prompt change:
 
-`vindex.script_adherence` (below) catches this automatically, per
-response, for free -- no LLM call, no reference answer needed.
-Reproduced against the two source datasets in
-`experiments/scripts/validate_vindex_port.py`; run it yourself from a
-clone of the repo (not from a `pip install`'d copy: `experiments/` is
-deliberately not shipped in the package, see `experiments/README.md`):
+| variant  | vague prompt | strict prompt |
+|----------|-------------:|---------------:|
+| English  | 100%         | 100%            |
+| Hindi    | 90%          | 90%             |
+| Hinglish | **20%**      | **100%**        |
 
-```bash
-git clone https://github.com/dripston/vindex
-cd vindex
-python experiments/scripts/validate_vindex_port.py
-```
+Ask a model to "reply in the same language and script the user used,"
+and a Hinglish ("Mumbai kahan hai?") prompt gets answered in pure
+Devanagari **4 times out of 5** -- technically fluent Hindi, wrong for
+a user who typed in Roman script because that's what they're
+comfortable with. Most teams never catch this, because whoever reviews
+outputs usually reads Hindi fine.
 
-**Don't just take this table's word for it, either.** `calibrated_similarity`'s
-AUC numbers and `indic_judge`'s 90.3% human-agreement figure (both
-documented below) are measurements of specific encoders and one judge
-model -- `vindex.datasets` ships the same labelled data those numbers
-come from, so you can run the same check against your own encoder or
-judge instead of trusting this project's numbers alone. See "Verify it
-on your own model" below.
+`vindex.script_adherence` catches it automatically, per response, for
+free -- no LLM call, no reference answer. That's the first metric
+below. [Reproduce this table yourself](#reproducing-the-headline-finding).
+
+**The other two hard metrics here (`calibrated_similarity`,
+`indic_judge`) come with the data behind their own numbers, so you can
+verify them on your own encoder or judge instead of trusting ours** --
+see [Verify it on your own model](#verify-it-on-your-own-model-not-just-this-projects-numbers-v050).
+
+## Contents
+
+- [Install](#install)
+- [script_adherence](#script_adherence----free-no-llm-catches-the-finding-above) -- script/language match, no LLM, free
+- [calibrated_similarity](#calibrated_similarity----embedding-similarity-calibrated-per-encoderlanguage) -- calibrated embedding similarity
+- [indic_judge](#indic_judge----llm-judge-with-a-hindi-rubric-reference-free-by-default) -- Hindi-rubric LLM judge
+- [check_trace](#check_trace----deterministic-mistranslation-detector-no-llm) -- deterministic mistranslation detector
+- [Reproducing the headline finding](#reproducing-the-headline-finding)
+- [Verify it on your own model](#verify-it-on-your-own-model-not-just-this-projects-numbers-v050)
+- [Judge selection guidance](#judge-selection-guidance)
+- [The AUC table, in full, and where it runs out](#the-argument-for-calibrated_similarity----and-where-that-argument-runs-out)
+- [Limitations](#limitations) -- read this before trusting any metric here in production
 
 ## Install
 
@@ -46,7 +55,9 @@ on your own model" below.
 pip install vindex
 ```
 
-## Example
+## Metrics
+
+### `script_adherence` -- free, no LLM, catches the finding above
 
 ```python
 from vindex import script_adherence
@@ -66,6 +77,8 @@ prompt used -- no reference answer needed. Labels: `matched`, `mixed`,
 `script_mismatch`, `language_mismatch` (only reachable with
 `strict_language_check=True`, see the Limitations section for why it's
 opt-in), `no_script_signal`, `empty`.
+
+### `calibrated_similarity` -- embedding similarity, calibrated per encoder/language
 
 ```bash
 pip install vindex[similarity]
@@ -106,6 +119,8 @@ fact that particular cell can't actually tell correct from wrong.
 Pass `min_auc=0.0` to disable this and trust the calibrated threshold
 alone -- only do this after checking the AUC table below for the
 specific cell you're using.
+
+### `indic_judge` -- LLM judge with a Hindi rubric, reference-free by default
 
 ```bash
 pip install vindex[judge]
@@ -152,6 +167,52 @@ still `label="flagged"`, not a pass. Requires the `judge` extra (the
 `groq` SDK) and a `GROQ_API_KEY`. See the Limitations section for what
 this metric does not (yet) do.
 
+### `check_trace` -- deterministic mistranslation detector, no LLM
+
+```python
+from vindex import check_trace
+
+# Does a judge's own reasoning trace correctly read the source, or did
+# it silently misread a known ambiguous term? Works on ANY judge's
+# trace, not only indic_judge's -- pass any reasoning text.
+result = check_trace(
+    source="समुद्र तल पर पानी किस तापमान पर उबलता है?",
+    trace="The question asks for the boiling point at the sea floor...",
+)
+
+print(result.label)   # "misread_detected"
+print(result.passed)  # False
+```
+
+`check_trace(source, trace, trap_words=None)` is a deterministic,
+dictionary-based check -- no LLM call, free, instant, reproducible.
+The error it catches happens *inside* a judge's reasoning before any
+output exists, so nothing else in this package (or in a
+transliteration layer, or WER) can catch it. The honest claim: this
+detects mistranslation of the N known ambiguous terms in
+`vindex.trap_words.load_trap_words()`, not mistranslation in general
+-- N is currently 69 (see the Limitations section for exactly what
+that does and doesn't cover). Pass your own `trap_words=[...]` to use
+a different or larger dictionary.
+`check_trace_llm_fallback(source, trace, judge, trap_words=None)` is
+an opt-in second mode (Sarvam's align-then-judge shape) for
+mistranslation categories a fixed dictionary structurally cannot catch
+-- a real LLM call, only on the segments that don't align, defaulting
+to flagging when the judge's own answer is ambiguous.
+
+## Reproducing the headline finding
+
+The 20%/100% Hinglish table above is reproduced against real source
+datasets in `experiments/scripts/validate_vindex_port.py` -- run it
+yourself from a clone (not from a `pip install`'d copy: `experiments/`
+is deliberately not shipped in the package, see `experiments/README.md`):
+
+```bash
+git clone https://github.com/dripston/vindex
+cd vindex
+python experiments/scripts/validate_vindex_port.py
+```
+
 ## Verify it on your own model, not just this project's numbers (v0.5.0)
 
 `calibrated_similarity`'s AUC table and `indic_judge`'s 90.3%
@@ -191,37 +252,6 @@ grading, and an untouched 30% holdout -- see
 `docs/annotation/BIAS_PROTOCOL.md`); the other is an independent fluent
 Hindi speaker with no stake in the result. Don't report agreement
 against grader1 alone without that disclosure attached.
-
-```python
-from vindex import check_trace
-
-# Does a judge's own reasoning trace correctly read the source, or did
-# it silently misread a known ambiguous term? Works on ANY judge's
-# trace, not only indic_judge's -- pass any reasoning text.
-result = check_trace(
-    source="समुद्र तल पर पानी किस तापमान पर उबलता है?",
-    trace="The question asks for the boiling point at the sea floor...",
-)
-
-print(result.label)   # "misread_detected"
-print(result.passed)  # False
-```
-
-`check_trace(source, trace, trap_words=None)` is a deterministic,
-dictionary-based check -- no LLM call, free, instant, reproducible.
-The error it catches happens *inside* a judge's reasoning before any
-output exists, so nothing else in this package (or in a
-transliteration layer, or WER) can catch it. The honest claim: this
-detects mistranslation of the N known ambiguous terms in
-`vindex.trap_words.load_trap_words()`, not mistranslation in general
--- N is currently 69 (see the Limitations section for exactly what
-that does and doesn't cover). Pass your own `trap_words=[...]` to use
-a different or larger dictionary.
-`check_trace_llm_fallback(source, trace, judge, trap_words=None)` is
-an opt-in second mode (Sarvam's align-then-judge shape) for
-mistranslation categories a fixed dictionary structurally cannot catch
--- a real LLM call, only on the segments that don't align, defaulting
-to flagging when the judge's own answer is ambiguous.
 
 ## Judge selection guidance
 
@@ -324,6 +354,12 @@ Full methodology, the "13 of 15" vs "11 of 15" note, and how to
 reproduce this table: `experiments/README.md`'s Milestone 3 section.
 
 ## Limitations
+
+This section is long on purpose: every metric above has real, specific
+failure modes, and burying them in a separate doc (or not writing them
+down at all) is how a library ends up trusted more than it should be.
+Read the entries for whichever function you're using before relying on
+it for a production decision.
 
 - **9 scripts recognized, nothing else.** Devanagari, Kannada, Tamil,
   Telugu, Bengali, Gujarati, Malayalam, Odia, Gurmukhi, plus Latin.
