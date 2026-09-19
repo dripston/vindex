@@ -2,6 +2,44 @@
 
 Evaluation metrics for Indic and code-mixed LLM output.
 
+## The finding this package is built around
+
+Same model, same 30 questions, one system-prompt change. The first
+prompt ("reply in the same language and script the user used") is
+ambiguous enough that a Romanized-Hindi ("Hinglish") prompt gets
+answered in Devanagari 4 times out of 5. A strict, script-forbidding
+prompt fixes it completely -- and most teams never notice, because
+whoever reviews the outputs usually reads Hindi fine even when their
+actual users typed in Roman script because that's what they're
+comfortable with.
+
+| variant  | rate, original prompt | rate, strict prompt |
+|----------|-----------------------:|---------------------:|
+| en       | 1.000                  | 1.000                 |
+| hi       | 0.900                  | 0.900                 |
+| hinglish | 0.200                  | 1.000                 |
+
+`vindex.script_adherence` (below) catches this automatically, per
+response, for free -- no LLM call, no reference answer needed.
+Reproduced against the two source datasets in
+`experiments/scripts/validate_vindex_port.py`; run it yourself from a
+clone of the repo (not from a `pip install`'d copy: `experiments/` is
+deliberately not shipped in the package, see `experiments/README.md`):
+
+```bash
+git clone https://github.com/dripston/vindex
+cd vindex
+python experiments/scripts/validate_vindex_port.py
+```
+
+**Don't just take this table's word for it, either.** `calibrated_similarity`'s
+AUC numbers and `indic_judge`'s 90.3% human-agreement figure (both
+documented below) are measurements of specific encoders and one judge
+model -- `vindex.datasets` ships the same labelled data those numbers
+come from, so you can run the same check against your own encoder or
+judge instead of trusting this project's numbers alone. See "Verify it
+on your own model" below.
+
 ## Install
 
 ```bash
@@ -176,7 +214,7 @@ output exists, so nothing else in this package (or in a
 transliteration layer, or WER) can catch it. The honest claim: this
 detects mistranslation of the N known ambiguous terms in
 `vindex.trap_words.load_trap_words()`, not mistranslation in general
--- N is currently 70 (see the Limitations section for exactly what
+-- N is currently 69 (see the Limitations section for exactly what
 that does and doesn't cover). Pass your own `trap_words=[...]` to use
 a different or larger dictionary.
 `check_trace_llm_fallback(source, trace, judge, trap_words=None)` is
@@ -184,31 +222,6 @@ an opt-in second mode (Sarvam's align-then-judge shape) for
 mistranslation categories a fixed dictionary structurally cannot catch
 -- a real LLM call, only on the segments that don't align, defaulting
 to flagging when the judge's own answer is ambiguous.
-
-## The finding this package is built around
-
-Same model, same 30 questions, one system-prompt change. The first
-prompt ("reply in the same language and script the user used") is
-ambiguous enough that a Romanized-Hindi ("Hinglish") prompt gets
-answered in Devanagari 4 times out of 5. A strict, script-forbidding
-prompt fixes it completely.
-
-| variant  | rate, original prompt | rate, strict prompt |
-|----------|-----------------------:|---------------------:|
-| en       | 1.000                  | 1.000                 |
-| hi       | 0.900                  | 0.900                 |
-| hinglish | 0.200                  | 1.000                 |
-
-Reproduced by `vindex.script_adherence` against the two source datasets
-in `experiments/scripts/validate_vindex_port.py` -- run it yourself
-from a clone of the repo (not from a `pip install`'d copy: `experiments/`
-is deliberately not shipped in the package, see `experiments/README.md`):
-
-```bash
-git clone https://github.com/dripston/vindex
-cd vindex
-python experiments/scripts/validate_vindex_port.py
-```
 
 ## Judge selection guidance
 
