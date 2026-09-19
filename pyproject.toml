@@ -1,6 +1,6 @@
 [project]
 name = "vindex"
-version = "0.4.4"
+version = "0.5.0"
 description = "Evaluation metrics for Indic and code-mixed LLM output."
 readme = "README.md"
 license = { text = "MIT" }
@@ -52,7 +52,7 @@ where = ["src"]
 # Trap-word dictionary CSVs (Milestone 6.1) must ship inside the
 # installed package, not just live in the repo's data/ directory --
 # see trap_words.py's PACKAGING note for the real bug this fixes.
-vindex = ["data/trap_words/*.csv"]
+vindex = ["data/trap_words/*.csv", "data/benchmarks/*"]
 
 [tool.ruff]
 line-length = 100

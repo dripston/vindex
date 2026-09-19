@@ -114,6 +114,46 @@ still `label="flagged"`, not a pass. Requires the `judge` extra (the
 `groq` SDK) and a `GROQ_API_KEY`. See the Limitations section for what
 this metric does not (yet) do.
 
+## Verify it on your own model, not just this project's numbers (v0.5.0)
+
+`calibrated_similarity`'s AUC table and `indic_judge`'s 90.3%
+human-agreement figure are both real measurements -- but they're
+measurements of *specific* encoders and *one* judge model
+(`openai/gpt-oss-120b`). Neither number is a guarantee about an encoder
+or judge you bring yourself. `vindex.datasets` ships the same labelled
+data those numbers come from, so you can run the same check against
+your own setup instead of trusting ours:
+
+```python
+from vindex.datasets import load_similarity_benchmark, similarity_benchmark_for_calibration
+from vindex.calibration import calibrate
+
+cases = load_similarity_benchmark()  # the 89 cases behind the AUC table above
+correct, wrong = similarity_benchmark_for_calibration(cases, my_similarity_fn, language="hi")
+result = calibrate(correct, wrong)
+print(result.threshold, result.accuracy_at_threshold, result.warnings)
+```
+
+```python
+from vindex import indic_judge
+from vindex.datasets import score_judge_benchmark
+
+def verdict(trace):
+    r = indic_judge(trace.question, trace.answer)
+    return "correct" if r.passed else "wrong"
+
+report = score_judge_benchmark(verdict)  # same 62 traces as the 90.3% figure
+print(report.agreement_grader1, report.agreement_grader2, report.disagreements)
+```
+
+`load_judge_benchmark()`'s data carries the same bias disclosure as the
+original study: one of the two human graders is this project's own
+owner (a real conflict of interest, mitigated by a frozen rubric, blind
+grading, and an untouched 30% holdout -- see
+`docs/annotation/BIAS_PROTOCOL.md`); the other is an independent fluent
+Hindi speaker with no stake in the result. Don't report agreement
+against grader1 alone without that disclosure attached.
+
 ```python
 from vindex import check_trace
 

@@ -1,0 +1,90 @@
+case_id,task_id,language,label,gold_text,answer
+capital_maharashtra__en,capital_maharashtra,en,correct,Mumbai,"Mumbai is the capital of Maharashtra, the most populous state in India."
+capital_maharashtra__en__wrong_subtle,capital_maharashtra,en,wrong_subtle,Mumbai,Mumbai is the capital of India.
+capital_maharashtra__en__wrong_hard,capital_maharashtra,en,wrong_hard,Mumbai,The capital of Maharashtra is Chennai.
+capital_maharashtra__hi,capital_maharashtra,hi,correct,Mumbai,"महाराष्ट्र की राजधानी मुंबई है, जो भारत का एक प्रमुख आर्थिक केंद्र है।"
+capital_maharashtra__hi__wrong_subtle,capital_maharashtra,hi,wrong_subtle,Mumbai,मुंबई भारत की राजधानी है।
+capital_maharashtra__hi__wrong_hard,capital_maharashtra,hi,wrong_hard,Mumbai,महाराष्ट्र की राजधानी चेन्नई है।
+capital_maharashtra__hinglish,capital_maharashtra,hinglish,correct,Mumbai,Maharashtra ki rajdhani Mumbai hai. Ye India ka financial capital bhi hai.
+capital_maharashtra__hinglish__wrong_subtle,capital_maharashtra,hinglish,wrong_subtle,Mumbai,Mumbai Bharat ki rajdhani hai.
+capital_maharashtra__hinglish__wrong_hard,capital_maharashtra,hinglish,wrong_hard,Mumbai,Maharashtra ki rajdhani Chennai hai.
+planets_count__en,planets_count,en,correct,Eight,"There are eight planets in our solar system—Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. Pluto was reclassified as a dwarf planet in 2006, so it is no longer counted among the main planets."
+planets_count__en__wrong_subtle,planets_count,en,wrong_subtle,Eight,"There are nine planets in our solar system, including Pluto."
+planets_count__en__wrong_hard,planets_count,en,wrong_hard,Eight,There are twelve planets in our solar system.
+planets_count__hi,planets_count,hi,correct,Eight,"हमारे सौर मंडल में 8 ग्रह हैं: बुध, शुक्र, पृथ्वी, मंगल, बृहस्पति, शनि, यूरेनस और नेपच्यून। 2006 में प्लूटो को बौना ग्रह घोषित कर दिया गया, इसलिए अब इसे मुख्य ग्रहों में नहीं गिना जाता।"
+planets_count__hi__wrong_subtle,planets_count,hi,wrong_subtle,Eight,"हमारे सौर मंडल में नौ ग्रह हैं, जिसमें प्लूटो भी शामिल है।"
+planets_count__hi__wrong_hard,planets_count,hi,wrong_hard,Eight,हमारे सौर मंडल में बारह ग्रह हैं।
+planets_count__hinglish,planets_count,hinglish,correct,Eight,Hamare Saur Mandal mein 8 grah hain. 2015 se Pluto ko dwarf planet gina jata hai.
+planets_count__hinglish__wrong_subtle,planets_count,hinglish,wrong_subtle,Eight,"Hamare saur mandal mein nau grah hain, jismein Pluto bhi shamil hai."
+planets_count__hinglish__wrong_hard,planets_count,hinglish,wrong_hard,Eight,Hamare saur mandal mein barah grah hain.
+freedom_year__en,freedom_year,en,correct,1947,"India gained independence in 1947, ending nearly 200 years of British colonial rule."
+freedom_year__en__wrong_subtle,freedom_year,en,wrong_subtle,1947,India gained independence in 1948.
+freedom_year__en__wrong_hard,freedom_year,en,wrong_hard,1947,India gained independence in 1857.
+freedom_year__hi,freedom_year,hi,correct,1947,"भारत को 1947 में स्वतंत्रता मिली, 15 अगस्त को आज़ादी का दिन मनाया जाता है।"
+freedom_year__hi__wrong_subtle,freedom_year,hi,wrong_subtle,1947,भारत को 1948 में स्वतंत्रता मिली।
+freedom_year__hi__wrong_hard,freedom_year,hi,wrong_hard,1947,भारत को 1857 में स्वतंत्रता मिली।
+freedom_year__hinglish,freedom_year,hinglish,correct,1947,"Bharat ko 1947 mein aazadi mili, 15 August ko. Yeh din aaj bhi Independence Day ke roop mein manaya jata hai."
+freedom_year__hinglish__wrong_subtle,freedom_year,hinglish,wrong_subtle,1947,Bharat ko 1948 mein aazadi mili.
+freedom_year__hinglish__wrong_hard,freedom_year,hinglish,wrong_hard,1947,Bharat ko 1857 mein aazadi mili.
+water_formula__en,water_formula,en,correct,H2O,"The chemical formula of water is **H₂O**, indicating that each molecule contains two hydrogen atoms bonded to one oxygen atom."
+water_formula__en__wrong_subtle,water_formula,en,wrong_subtle,H2O,The chemical formula of water is H2O2.
+water_formula__en__wrong_hard,water_formula,en,wrong_hard,H2O,The chemical formula of water is CO2.
+water_formula__hi,water_formula,hi,correct,H2O,"पानी का रासायनिक सूत्र **H₂O** है, अर्थात् दो हाइड्रोजन और एक ऑक्सीजन परमाणु से बना होता है."
+water_formula__hi__wrong_subtle,water_formula,hi,wrong_subtle,H2O,पानी का रासायनिक सूत्र H2O2 है।
+water_formula__hi__wrong_hard,water_formula,hi,wrong_hard,H2O,पानी का रासायनिक सूत्र CO2 है।
+water_formula__hinglish,water_formula,hinglish,correct,H2O,Pani ka rasayanik sutra H₂O hai. Isme do hydrogen atoms aur ek oxygen atom hota hai.
+water_formula__hinglish__wrong_subtle,water_formula,hinglish,wrong_subtle,H2O,Pani ka rasayanik sutra H2O2 hai.
+water_formula__hinglish__wrong_hard,water_formula,hinglish,wrong_hard,H2O,Pani ka rasayanik sutra CO2 hai.
+national_animal_india__en,national_animal_india,en,correct,Bengal tiger,"The national animal of India is the Bengal tiger, chosen for its strength, beauty, and cultural significance."
+national_animal_india__en__wrong_subtle,national_animal_india,en,wrong_subtle,Bengal tiger,The national animal of India is the Siberian tiger.
+national_animal_india__en__wrong_hard,national_animal_india,en,wrong_hard,Bengal tiger,The national animal of India is the lion.
+national_animal_india__hi,national_animal_india,hi,correct,Bengal tiger,"भारत का राष्ट्रीय पशु हाथी है, जिसे 1972 में राष्ट्रीय पशु घोषित किया गया था।"
+national_animal_india__hi__wrong_subtle,national_animal_india,hi,wrong_subtle,Bengal tiger,भारत का राष्ट्रीय पशु साइबेरियाई टाइगर है।
+national_animal_india__hi__wrong_hard,national_animal_india,hi,wrong_hard,Bengal tiger,भारत का राष्ट्रीय पशु शेर है।
+national_animal_india__hinglish,national_animal_india,hinglish,correct,Bengal tiger,Bharat ka rashtriya pashu bhains (water buffalo) hai. Ye pashu desh ki arthavyavastha aur parampara mein bahut mahatvapurn hai.
+national_animal_india__hinglish__wrong_subtle,national_animal_india,hinglish,wrong_subtle,Bengal tiger,Bharat ka rashtriya pashu Siberian tiger hai.
+national_animal_india__hinglish__wrong_hard,national_animal_india,hinglish,wrong_hard,Bengal tiger,Bharat ka rashtriya pashu sher hai.
+largest_ocean__en,largest_ocean,en,correct,Pacific Ocean,"The Pacific Ocean is the largest ocean on Earth, covering about 63 million square miles (163 million km²). It stretches from the Arctic in the north to the Antarctic in the south, larger than all the Earth's landmasses combined."
+largest_ocean__en__wrong_subtle,largest_ocean,en,wrong_subtle,Pacific Ocean,The Pacific Ocean is the smallest ocean on Earth.
+largest_ocean__en__wrong_hard,largest_ocean,en,wrong_hard,Pacific Ocean,The largest ocean on Earth is the Atlantic Ocean.
+largest_ocean__hi,largest_ocean,hi,correct,Pacific Ocean,"पैसिफिक महासागर पृथ्वी का सबसे बड़ा महासागर है, जो लगभग 46.6 मिलियन वर्ग मील क्षेत्रफल को कवर करता है।"
+largest_ocean__hi__wrong_subtle,largest_ocean,hi,wrong_subtle,Pacific Ocean,प्रशांत महासागर पृथ्वी का सबसे छोटा महासागर है।
+largest_ocean__hi__wrong_hard,largest_ocean,hi,wrong_hard,Pacific Ocean,पृथ्वी का सबसे बड़ा महासागर अटलांटिक महासागर है।
+largest_ocean__hinglish,largest_ocean,hinglish,correct,Pacific Ocean,Sabse bada mahasagar Pacific Ocean hai. Yeh dharti ke 46% surface area ko cover karta hai.
+largest_ocean__hinglish__wrong_subtle,largest_ocean,hinglish,wrong_subtle,Pacific Ocean,Prashant Mahasagar Prithvi ka sabse chhota mahasagar hai.
+largest_ocean__hinglish__wrong_hard,largest_ocean,hinglish,wrong_hard,Pacific Ocean,Prithvi ka sabse bada mahasagar Atlantic Mahasagar hai.
+sun_rise_direction__en,sun_rise_direction,en,correct,East,"The sun rises in the east, because Earth rotates from west to east, making the sun appear to move across the eastern horizon."
+sun_rise_direction__en__wrong_subtle,sun_rise_direction,en,wrong_subtle,East,The sun rises in the north-east.
+sun_rise_direction__en__wrong_hard,sun_rise_direction,en,wrong_hard,East,The sun rises in the west.
+sun_rise_direction__hi,sun_rise_direction,hi,correct,East,"सूर्य पूर्व दिशा में उगता है, क्योंकि पृथ्वी अपने अक्ष पर घूर्णन करती है।"
+sun_rise_direction__hi__wrong_subtle,sun_rise_direction,hi,wrong_subtle,East,सूर्य उत्तर-पूर्व दिशा में उगता है।
+sun_rise_direction__hi__wrong_hard,sun_rise_direction,hi,wrong_hard,East,सूर्य पश्चिम दिशा में उगता है।
+sun_rise_direction__hinglish,sun_rise_direction,hinglish,correct,East,"Suraj purvi disha mein ugta hai, kyunki dharti apni dhur par ghuma kar subah ki taraf hoti hai."
+sun_rise_direction__hinglish__wrong_subtle,sun_rise_direction,hinglish,wrong_subtle,East,Suraj uttar-purab disha mein ugta hai.
+sun_rise_direction__hinglish__wrong_hard,sun_rise_direction,hinglish,wrong_hard,East,Suraj paschim disha mein ugta hai.
+days_in_leap_year__en,days_in_leap_year,en,correct,366,"A leap year has 366 days, because an extra day (February 29) is added to keep the calendar in sync with the Earth’s orbit."
+days_in_leap_year__en__wrong_subtle,days_in_leap_year,en,wrong_subtle,366,A leap year has 365 days.
+days_in_leap_year__en__wrong_hard,days_in_leap_year,en,wrong_hard,366,A leap year has 400 days.
+days_in_leap_year__hi,days_in_leap_year,hi,correct,366,एक लीप वर्ष में 366 दिन होते हैं। यह इसलिए होता है क्योंकि फरवरी में 29 दिन होते हैं।
+days_in_leap_year__hi__wrong_subtle,days_in_leap_year,hi,wrong_subtle,366,एक लीप वर्ष में 365 दिन होते हैं।
+days_in_leap_year__hi__wrong_hard,days_in_leap_year,hi,wrong_hard,366,एक लीप वर्ष में 400 दिन होते हैं।
+days_in_leap_year__hinglish,days_in_leap_year,hinglish,correct,366,"Leap year mein 366 din hote hain, kyunki February mein 29 din hote hain."
+days_in_leap_year__hinglish__wrong_subtle,days_in_leap_year,hinglish,wrong_subtle,366,Ek leap year mein 365 din hote hain.
+days_in_leap_year__hinglish__wrong_hard,days_in_leap_year,hinglish,wrong_hard,366,Ek leap year mein 400 din hote hain.
+father_of_nation_india__en,father_of_nation_india,en,correct,Mahatma Gandhi,"Mahatma Gandhi is called the “Father of the Nation” in India, for leading the country’s non‑violent struggle for independence from British rule."
+father_of_nation_india__en__wrong_subtle,father_of_nation_india,en,wrong_subtle,Mahatma Gandhi,Mahatma Gandhi is known as the Netaji of India.
+father_of_nation_india__en__wrong_hard,father_of_nation_india,en,wrong_hard,Mahatma Gandhi,Jawaharlal Nehru is known as the Father of the Nation in India.
+father_of_nation_india__hi__wrong_subtle,father_of_nation_india,hi,wrong_subtle,Mahatma Gandhi,महात्मा गांधी को भारत का नेताजी कहा जाता है।
+father_of_nation_india__hi__wrong_hard,father_of_nation_india,hi,wrong_hard,Mahatma Gandhi,भारत में जवाहरलाल नेहरू को राष्ट्रपिता के रूप में जाना जाता है।
+father_of_nation_india__hinglish,father_of_nation_india,hinglish,correct,Mahatma Gandhi,Mahatma Gandhi ko Bharat ka rashtrapita mana jata hai. Unhone ahimsa aur satyagraha se desh ki azadi ki ladai ladhi.
+father_of_nation_india__hinglish__wrong_subtle,father_of_nation_india,hinglish,wrong_subtle,Mahatma Gandhi,Mahatma Gandhi ko Bharat ka Netaji kaha jata hai.
+father_of_nation_india__hinglish__wrong_hard,father_of_nation_india,hinglish,wrong_hard,Mahatma Gandhi,Bharat mein Jawaharlal Nehru ko rashtrapita ke roop mein jana jata hai.
+boiling_point_water_c__en,boiling_point_water_c,en,correct,100 degrees Celsius,Water boils at 100 °C at sea level (standard atmospheric pressure of 1 atm).
+boiling_point_water_c__en__wrong_subtle,boiling_point_water_c,en,wrong_subtle,100 degrees Celsius,Water boils at 0 degrees Celsius at sea level.
+boiling_point_water_c__en__wrong_hard,boiling_point_water_c,en,wrong_hard,100 degrees Celsius,Water boils at 50 degrees Celsius at sea level.
+boiling_point_water_c__hi,boiling_point_water_c,hi,correct,100 degrees Celsius,समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है। यह मान मानक वायुमंडलीय दबाव (1 atm) पर लागू होता है।
+boiling_point_water_c__hi__wrong_subtle,boiling_point_water_c,hi,wrong_subtle,100 degrees Celsius,समुद्र तल पर पानी 0 डिग्री सेल्सियस पर उबलता है।
+boiling_point_water_c__hi__wrong_hard,boiling_point_water_c,hi,wrong_hard,100 degrees Celsius,समुद्र तल पर पानी 50 डिग्री सेल्सियस पर उबलता है।
+boiling_point_water_c__hinglish,boiling_point_water_c,hinglish,correct,100 degrees Celsius,"Pani samudra tal par 100 °C par ubalta hai, kyunki yeh standard atmospheric pressure (1 atm) par hota hai."
+boiling_point_water_c__hinglish__wrong_subtle,boiling_point_water_c,hinglish,wrong_subtle,100 degrees Celsius,Samudra tal par pani 0 degree Celsius par ubalta hai.
+boiling_point_water_c__hinglish__wrong_hard,boiling_point_water_c,hinglish,wrong_hard,100 degrees Celsius,Samudra tal par pani 50 degree Celsius par ubalta hai.

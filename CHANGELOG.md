@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.5.0
+
+**New feature: `vindex.datasets`, so you can verify `calibrated_similarity`
+and `indic_judge` on your own encoder/judge instead of trusting this
+project's own numbers alone.**
+
+The AUC table and the 90.3% human-agreement figure documented in
+README.md are both real measurements -- but of *specific* encoders and
+*one* judge model. Neither generalizes automatically to a different
+encoder or judge a caller brings. `vindex.datasets` ships the same
+labelled data those numbers were computed from:
+
+- `load_similarity_benchmark()` -- the 89 (question, language, label,
+  answer) cases behind the calibrated_similarity AUC table, deduplicated
+  to be encoder-independent (bring your own encoder). `similarity_
+  benchmark_for_calibration()` buckets your own scores into the
+  `(correct, wrong)` lists `vindex.calibrate()` already takes.
+- `load_judge_benchmark()` -- the 62 traces behind indic_judge's
+  Milestone 6.3 human-agreement study, with both independent human
+  graders' verdicts and which 19 were the untouched 30% holdout.
+  `score_judge_benchmark()` runs any judge callback (indic_judge or
+  otherwise) over them and reports agreement with both graders, plus
+  the specific disagreeing trace_ids to inspect first.
+
+Both loaders carry the same disclosures as the original studies (see
+README.md's new "Verify it on your own model" section and
+`docs/annotation/BIAS_PROTOCOL.md`) -- this ships the evidence, not
+just the conclusion.
+
+No changes to `script_adherence`, `calibrated_similarity`, `indic_judge`,
+or `check_trace`'s own behavior.
+
 ## v0.4.4
 
 **Two real, previously-documented-but-unfixed limitations, now fixed**
