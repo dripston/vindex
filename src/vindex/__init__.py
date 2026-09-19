@@ -5,7 +5,7 @@ from vindex.metric import script_adherence
 from vindex.result import MetricResult
 from vindex.similarity import calibrated_similarity
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 __all__ = [
     "MetricResult",

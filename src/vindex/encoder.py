@@ -28,24 +28,36 @@ with the same (encoder, text, is_query) reuse a cached embedding --
 nobody in this project has a GPU, and encoding is the slow part of
 every run.
 
-KNOWN LIMITATION -- CACHE KEY HAS NO MODEL REVISION (found by an
-independent outside review): the cache key is derived only from the
-encoder's mutable HuggingFace repo name (e.g.
+CACHE KEY INCLUDES RESOLVED MODEL REVISION (FIXED -- found by an
+independent outside review): the cache key used to be derived only
+from the encoder's mutable HuggingFace repo name (e.g.
 "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"), not a
 pinned revision/commit hash. `judge_model.py`'s judge models are
 version-pinned and their exact `judge_model_id` recorded in every
 result specifically so scores stay comparable across time -- the
-embedding cache has no equivalent protection. If a HuggingFace repo
-is ever updated in place under the same name (weights changed, no name
-bump), a stale cached embedding from the old weights is silently
-reused instead of being recomputed, and `calibration.CALIBRATION_TABLE`'s
+embedding cache had no equivalent protection. If a HuggingFace repo
+was updated in place under the same name (weights changed, no name
+bump), a stale cached embedding from the old weights would be silently
+reused instead of recomputed, and `calibration.CALIBRATION_TABLE`'s
 thresholds (fit against the OLD weights) would then be compared against
 embeddings from different, new weights with nothing surfacing the
-mismatch. Not fixed here -- would need `Encoder.load()` to record and
-key on the resolved model revision, which sentence-transformers/
-transformers expose but this module does not currently request. If you
-need long-term reproducibility guarantees, set `$VINDEX_CACHE_DIR` to a
-fresh directory whenever you pin a specific model revision yourself.
+mismatch.
+
+Fixed: `Encoder.load()` now reads the resolved commit hash that
+transformers/sentence-transformers already resolve internally
+(`config._commit_hash`, exposed identically whether the model is
+loaded as a raw `AutoModel` or wrapped inside a `SentenceTransformer`)
+and folds it into the cache key, so a rebuild under the same repo name
+with different weights gets a different cache key instead of a stale
+hit. This costs no extra network call -- it reads a value the loader
+already resolved locally, it does not query the Hub separately. If the
+hash cannot be determined (e.g. an unusual model wrapper that does not
+expose `_commit_hash`), caching degrades to keying on the name alone
+(the old behavior) rather than crashing -- so revision pinning is
+best-effort, not a guarantee for every possible model class. If you
+need a hard reproducibility guarantee regardless, set
+`$VINDEX_CACHE_DIR` to a fresh directory whenever you pin a specific
+model revision yourself.
 
 CACHE_ROOT LOCATION (fixed after a real bug -- see _default_cache_root's
 docstring): NOT a repo-relative path. It used to be computed as three
@@ -117,9 +129,18 @@ def _cache_key(text: str, is_query: bool) -> str:
     return h.hexdigest()
 
 
-def _cache_path(encoder_name: str, text: str, is_query: bool) -> tuple[str, str]:
+def _cache_path(
+    encoder_name: str, revision: str | None, text: str, is_query: bool
+) -> tuple[str, str]:
+    # revision is folded into the directory name (not the file's hash)
+    # so different weights under the same repo name land in sibling
+    # directories rather than colliding -- see this module's docstring
+    # ("CACHE KEY INCLUDES RESOLVED MODEL REVISION").
     key = _cache_key(text, is_query)
-    d = os.path.join(CACHE_ROOT, _sanitize(encoder_name), key[:2])
+    name_part = _sanitize(encoder_name)
+    if revision:
+        name_part = f"{name_part}@{revision}"
+    d = os.path.join(CACHE_ROOT, name_part, key[:2])
     return os.path.join(d, key + ".npy"), d
 
 
@@ -143,6 +164,7 @@ class Encoder:
         self._st_model: Any = None
         self._hf_model: Any = None
         self._hf_tokenizer: Any = None
+        self.revision: str | None = None
         self.cache_hits = 0
         self.cache_misses = 0
 
@@ -153,11 +175,30 @@ class Encoder:
             self._hf_tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             self._hf_model = AutoModel.from_pretrained(self.model_name)
             self._hf_model.eval()
+            self.revision = getattr(self._hf_model.config, "_commit_hash", None)
         else:
             from sentence_transformers import SentenceTransformer
 
             self._st_model = SentenceTransformer(self.model_name)
+            self.revision = self._resolve_st_revision(self._st_model)
         return self
+
+    @staticmethod
+    def _resolve_st_revision(st_model: Any) -> str | None:
+        # SentenceTransformer wraps one or more sub-modules; the
+        # transformer sub-module exposes the same resolved
+        # config._commit_hash a raw AutoModel would. Best-effort: if
+        # this wrapper shape ever changes, fall back to no revision
+        # (cache keys on name alone) rather than raising.
+        try:
+            for module in st_model.modules():
+                auto_model = getattr(module, "auto_model", None)
+                commit_hash = getattr(getattr(auto_model, "config", None), "_commit_hash", None)
+                if commit_hash:
+                    return str(commit_hash)
+        except Exception:
+            return None
+        return None
 
     def _prep(self, text: str, is_query: bool) -> str:
         if self.model_name in E5_MODELS:
@@ -203,7 +244,7 @@ class Encoder:
         """
         import numpy as np
 
-        path, d = _cache_path(self.model_name, text, is_query)
+        path, d = _cache_path(self.model_name, self.revision, text, is_query)
         if os.path.exists(path):
             self.cache_hits += 1
             result: np.ndarray[Any, Any] = np.load(path)

@@ -19,7 +19,7 @@ pytest.importorskip("sentence_transformers")
 np = pytest.importorskip("numpy")
 
 from vindex.calibration import MURIL_MODEL_NAME  # noqa: E402
-from vindex.encoder import MurilWithoutOverrideError, _cache_path  # noqa: E402
+from vindex.encoder import Encoder, MurilWithoutOverrideError, _cache_path  # noqa: E402
 from vindex.similarity import calibrated_similarity  # noqa: E402
 
 _ENCODER = "sentence-transformers/all-MiniLM-L6-v2"
@@ -110,6 +110,21 @@ def test_calibrated_similarity_detail_reports_calibration_metadata() -> None:
     assert r.detail["calibrated"] is True
     assert "raw_cosine_similarity" in r.detail
     assert "calibration_n_cases" in r.detail
+
+
+def test_calibrated_similarity_detail_has_unclamped_cosine_similarity() -> None:
+    # Regression (found by an independent outside review): the
+    # detail key "raw_cosine_similarity" was actually the POST-clamp
+    # value ([0, 1]), not the true unclamped cosine similarity -- a
+    # misleading name. "unclamped_cosine_similarity" now carries the
+    # real pre-clamp value; "raw_cosine_similarity" is kept (same
+    # post-clamp value as before) for backwards compatibility.
+    r = calibrated_similarity(
+        gold="hello world", response="hello world", language="en", encoder_name=_ENCODER
+    )
+    assert "unclamped_cosine_similarity" in r.detail
+    unclamped = r.detail["unclamped_cosine_similarity"]
+    assert r.detail["raw_cosine_similarity"] == max(0.0, min(1.0, unclamped))
 
 
 def test_calibrated_similarity_score_is_bounded() -> None:
@@ -230,8 +245,16 @@ def test_calibrated_similarity_raises_on_nan_cached_embedding() -> None:
     # calibrated_similarity() raises instead of silently scoring 1.0.
     gold_text = "__vindex_test_nan_regression_gold__"
     response_text = "__vindex_test_nan_regression_response__"
+    # calibrated_similarity() reuses a process-lifetime Encoder instance
+    # keyed on (encoder_name, allow_muril) -- see similarity.py's
+    # _encoder_instances -- so this test's fake cache entry must be
+    # written under that same instance's resolved revision, or the
+    # revision-pinned cache key (see encoder.py's "CACHE KEY INCLUDES
+    # RESOLVED MODEL REVISION") will miss the fake entry instead of
+    # reading the poisoned NaN payload.
+    revision = Encoder(_ENCODER).load().revision
     for text, is_query in ((gold_text, False), (response_text, True)):
-        path, directory = _cache_path(_ENCODER, text, is_query)
+        path, directory = _cache_path(_ENCODER, revision, text, is_query)
         os.makedirs(directory, exist_ok=True)
         np.save(path[:-4], np.array([float("nan")] * 8, dtype="float32"))
 
@@ -242,6 +265,6 @@ def test_calibrated_similarity_raises_on_nan_cached_embedding() -> None:
             )
     finally:
         for text, is_query in ((gold_text, False), (response_text, True)):
-            path, _ = _cache_path(_ENCODER, text, is_query)
+            path, _ = _cache_path(_ENCODER, revision, text, is_query)
             if os.path.exists(path):
                 os.remove(path)

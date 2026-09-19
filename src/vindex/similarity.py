@@ -177,6 +177,7 @@ def calibrated_similarity(
             "score. Clear the encoder cache (see vindex.encoder.CACHE_ROOT) and "
             "retry."
         )
+    raw_cosine_similarity = score
     score = max(0.0, min(1.0, score))
 
     try:
@@ -194,6 +195,13 @@ def calibrated_similarity(
         "language": language,
         "threshold": threshold,
         "calibrated": calibrated,
+        # cosine_similarity, unclamped -- can be < 0.0 or (due to
+        # floating point) fractionally > 1.0. "raw_cosine_similarity"
+        # below is the same value AFTER the [0, 1] clamp used for
+        # scoring; kept under its old name for backwards compatibility
+        # even though "raw" was never accurate for it (found by an
+        # independent outside review).
+        "unclamped_cosine_similarity": raw_cosine_similarity,
         "raw_cosine_similarity": score,
     }
     if calibration is not None:

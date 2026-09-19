@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.4.4
+
+**Two real, previously-documented-but-unfixed limitations, now fixed**
+(both had stood as "KNOWN LIMITATION" / "documented trade-off" comments
+across several earlier review rounds; a tenth independent outside
+review re-surfaced both as still-open, prompting the actual fix):
+
+- **`calibrated_similarity`'s embedding cache now pins the resolved
+  model revision, not just the encoder's repo name.** Previously,
+  `encoder.py`'s on-disk cache keyed only on the mutable HuggingFace
+  repo name (e.g. `sentence-transformers/paraphrase-multilingual-mpnet-base-v2`).
+  If that repo were ever updated in place under the same name (weights
+  changed, no name bump), a stale cached embedding from the old
+  weights would be silently reused and compared against
+  `CALIBRATION_TABLE` thresholds fit on the OLD weights, with nothing
+  surfacing the mismatch. `Encoder.load()` now reads the commit hash
+  transformers/sentence-transformers already resolve internally
+  (`config._commit_hash`) and folds it into the cache key -- no extra
+  network call, since it reads a value the loader already resolved
+  locally. If a model wrapper doesn't expose that hash, caching
+  degrades to the old name-only behavior rather than crashing.
+- **`calibrated_similarity`'s `detail["raw_cosine_similarity"]` is no
+  longer mislabeled.** That key actually held the POST-clamp value
+  (cosine similarity clamped to `[0, 1]`), not the true raw cosine
+  similarity, which can be negative. A new `detail["unclamped_cosine_similarity"]`
+  key now carries the real pre-clamp value; `raw_cosine_similarity` is
+  kept under its old name (same post-clamp value as before) for
+  backwards compatibility.
+
+No API signature changes. No change to `script_adherence`,
+`indic_judge`, or `check_trace`.
+
 ## v0.4.3
 
 **One-line correction, found by a ninth independent outside review**
