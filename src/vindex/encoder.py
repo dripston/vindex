@@ -1,73 +1,27 @@
-"""
-Encoder loading, encoding, and disk caching for calibrated_similarity
-(Milestone 3.2, 3.4).
+"""Sentence-encoder loading, encoding, and on-disk embedding cache.
 
-sentence-transformers/transformers/torch are NOT core vindex
-dependencies -- they are multi-GB installs and Milestone 1/2 shipped
-without them on purpose. They are required only if you actually call
-calibrated_similarity(); install them via the "similarity" extra
-(`pip install vindex[similarity]`). Everything in this module lazy-
-imports them so `import vindex` alone never requires them.
+Used by :func:`vindex.calibrated_similarity`. The encoder backends
+(sentence-transformers, transformers, torch) are optional, multi-GB
+dependencies installed with ``pip install vindex[similarity]``; this
+module imports them lazily, so ``import vindex`` never requires them.
 
-DEFAULT ENCODER (Milestone 3.2): sentence-transformers/paraphrase-
-multilingual-mpnet-base-v2 -- see calibration.DEFAULT_ENCODER and its
-own module docstring for why (it is the best all-around performer in
-the calibration table, not the fastest or smallest).
+The default encoder is ``calibration.DEFAULT_ENCODER``
+(paraphrase-multilingual-mpnet-base-v2), the best all-around performer in
+the calibration table. Loading ``google/muril-base-cased`` raises
+:class:`MurilWithoutOverrideError` unless ``allow_muril=True`` is passed;
+see ``calibration.MURIL_WARNING`` for why.
 
-MuRIL WARNING (Milestone 3.2): passing google/muril-base-cased raises
-loudly at load time -- not silently degraded output. See
-calibration.MURIL_WARNING for the full HindiWiC-cited explanation. Pass
-allow_muril=True to load it anyway (e.g. to reproduce or extend the
-calibration experiment itself).
-
-CACHING (Milestone 3.4): ported from experiments/scripts/
-encoder_cache.py, same cache-key scheme
-(<cache_root>/<sanitized_encoder_name>/<sha256(text)[:2]>/
-<sha256(text)>.npy, is_query folded into the hash) so repeated calls
-with the same (encoder, text, is_query) reuse a cached embedding --
-nobody in this project has a GPU, and encoding is the slow part of
-every run.
-
-CACHE KEY INCLUDES RESOLVED MODEL REVISION (FIXED -- found by an
-independent outside review): the cache key used to be derived only
-from the encoder's mutable HuggingFace repo name (e.g.
-"sentence-transformers/paraphrase-multilingual-mpnet-base-v2"), not a
-pinned revision/commit hash. `judge_model.py`'s judge models are
-version-pinned and their exact `judge_model_id` recorded in every
-result specifically so scores stay comparable across time -- the
-embedding cache had no equivalent protection. If a HuggingFace repo
-was updated in place under the same name (weights changed, no name
-bump), a stale cached embedding from the old weights would be silently
-reused instead of recomputed, and `calibration.CALIBRATION_TABLE`'s
-thresholds (fit against the OLD weights) would then be compared against
-embeddings from different, new weights with nothing surfacing the
-mismatch.
-
-Fixed: `Encoder.load()` now reads the resolved commit hash that
-transformers/sentence-transformers already resolve internally
-(`config._commit_hash`, exposed identically whether the model is
-loaded as a raw `AutoModel` or wrapped inside a `SentenceTransformer`)
-and folds it into the cache key, so a rebuild under the same repo name
-with different weights gets a different cache key instead of a stale
-hit. This costs no extra network call -- it reads a value the loader
-already resolved locally, it does not query the Hub separately. If the
-hash cannot be determined (e.g. an unusual model wrapper that does not
-expose `_commit_hash`), caching degrades to keying on the name alone
-(the old behavior) rather than crashing -- so revision pinning is
-best-effort, not a guarantee for every possible model class. If you
-need a hard reproducibility guarantee regardless, set
-`$VINDEX_CACHE_DIR` to a fresh directory whenever you pin a specific
-model revision yourself.
-
-CACHE_ROOT LOCATION (fixed after a real bug -- see _default_cache_root's
-docstring): NOT a repo-relative path. It used to be computed as three
-dirname() hops from __file__, which resolves inside the Python install
-directory for anyone who `pip install`'d this package -- and
-os.makedirs() there raises PermissionError on any normal, non-root
-install. Now a real user cache directory: $VINDEX_CACHE_DIR if set,
-else the platform's standard cache location. A cache-write failure
-(e.g. read-only filesystem) degrades to no caching rather than
-crashing encode() -- see encode()'s try/except.
+Embeddings are cached on disk, keyed by encoder name, resolved model
+revision (the commit hash transformers already resolves at load time),
+query/passage role, and the SHA-256 of the text. Including the revision
+means a model updated in place on the Hugging Face Hub does not reuse
+stale embeddings. Revision detection is best-effort: if a model wrapper
+does not expose a commit hash, the cache is keyed on the name alone. For
+a hard reproducibility guarantee, point ``VINDEX_CACHE_DIR`` at a fresh
+directory whenever you pin a model revision. The cache location is
+``$VINDEX_CACHE_DIR`` if set, otherwise the platform's user cache
+directory. If the cache is not writable, encoding still succeeds without
+caching.
 """
 
 from __future__ import annotations
@@ -82,19 +36,10 @@ if TYPE_CHECKING:
     import numpy as np
 
 def _default_cache_root() -> str:
-    """Platform-appropriate user cache directory for vindex's encoder
-    cache, honoring VINDEX_CACHE_DIR as an explicit override.
+    """Return the user cache directory for encoder embeddings.
 
-    PACKAGING FIX (a real bug, not a style choice): this used to be
-    computed as three dirname() hops from __file__, resolving to
-    <repo_root>/encoder_cache/ -- which only exists in a git checkout.
-    In an installed package, that path resolves inside the Python
-    installation directory (e.g. site-packages' grandparent), and
-    encode()'s os.makedirs() call there raises PermissionError on any
-    normal (non-root/non-admin) install. Fixed to use a real user cache
-    directory: $VINDEX_CACHE_DIR if set, else $XDG_CACHE_HOME/vindex on
-    Linux/Mac, else ~/.cache/vindex, else (Windows, no XDG_CACHE_HOME)
-    %LOCALAPPDATA%/vindex/cache.
+    Resolution order: ``$VINDEX_CACHE_DIR``; ``$XDG_CACHE_HOME/vindex``;
+    ``%LOCALAPPDATA%/vindex/cache`` on Windows; ``~/.cache/vindex``.
     """
     override = os.environ.get("VINDEX_CACHE_DIR")
     if override:
@@ -132,10 +77,8 @@ def _cache_key(text: str, is_query: bool) -> str:
 def _cache_path(
     encoder_name: str, revision: str | None, text: str, is_query: bool
 ) -> tuple[str, str]:
-    # revision is folded into the directory name (not the file's hash)
-    # so different weights under the same repo name land in sibling
-    # directories rather than colliding -- see this module's docstring
-    # ("CACHE KEY INCLUDES RESOLVED MODEL REVISION").
+    # The revision is part of the directory name, so different weights
+    # under the same repo name land in sibling directories.
     key = _cache_key(text, is_query)
     name_part = _sanitize(encoder_name)
     if revision:
@@ -147,10 +90,18 @@ def _cache_path(
 class Encoder:
     """Loads one sentence encoder and encodes text, with an on-disk cache.
 
-    Uniform interface across sentence-transformers models and raw
-    HuggingFace transformer models (MuRIL is not a sentence-transformers
-    model and needs manual mean pooling) -- ported from
-    experiments/scripts/encoder_comparison.py's EncoderWrapper.
+    Provides a uniform interface over sentence-transformers models and raw
+    Hugging Face transformer models (MuRIL is not a sentence-transformers
+    model and is mean-pooled manually).
+
+    Args:
+        model_name: Hugging Face model id. Defaults to
+            ``calibration.DEFAULT_ENCODER``.
+        allow_muril: Permit loading ``google/muril-base-cased``.
+
+    Raises:
+        MurilWithoutOverrideError: If MuRIL is requested without
+            ``allow_muril=True``.
     """
 
     def __init__(self, model_name: str = "", allow_muril: bool = False) -> None:
@@ -185,11 +136,10 @@ class Encoder:
 
     @staticmethod
     def _resolve_st_revision(st_model: Any) -> str | None:
-        # SentenceTransformer wraps one or more sub-modules; the
-        # transformer sub-module exposes the same resolved
-        # config._commit_hash a raw AutoModel would. Best-effort: if
-        # this wrapper shape ever changes, fall back to no revision
-        # (cache keys on name alone) rather than raising.
+        # The transformer sub-module of a SentenceTransformer exposes the
+        # same resolved config._commit_hash a raw AutoModel would. If the
+        # wrapper shape differs, fall back to no revision (cache keys on
+        # the name alone) rather than raising.
         try:
             for module in st_model.modules():
                 auto_model = getattr(module, "auto_model", None)
@@ -233,14 +183,16 @@ class Encoder:
         return emb[0]  # type: ignore[no-any-return]
 
     def encode(self, text: str, is_query: bool = True) -> np.ndarray[Any, Any]:
-        """Encode `text`, using the on-disk cache when available.
+        """Encode text, using the on-disk cache when available.
 
-        is_query distinguishes query vs passage encoding for models
-        (e5) whose embedding depends on that role; for other models the
-        embedding is the same either way, but is_query is still folded
-        into the cache key unconditionally to stay correct for all
-        encoders without special-casing (see encoder_cache.py's
-        original docstring).
+        Args:
+            text: Text to encode.
+            is_query: Encode as a query rather than a passage. Only e5
+                models embed the two roles differently, but the role is
+                always part of the cache key.
+
+        Returns:
+            A unit-normalized embedding vector.
         """
         import numpy as np
 
@@ -258,11 +210,7 @@ class Encoder:
             np.save(tmp_base, vec)
             os.replace(tmp_base + ".npy", path)
         except OSError:
-            # Cache directory not writable (e.g. a read-only filesystem,
-            # or a permissions issue not fixed by VINDEX_CACHE_DIR) --
-            # degrade to no caching rather than crash the whole encode
-            # call. The result is still correct, just not persisted for
-            # next time.
+            # Cache directory not writable: return the result uncached.
             pass
         return vec
 

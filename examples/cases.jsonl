@@ -1,0 +1,6 @@
+{"id": "mumbai-hinglish", "prompt": "Mumbai kahan hai?", "response": "Mumbai Maharashtra mein hai, India ke west coast par."}
+{"id": "mumbai-devanagari-reply", "prompt": "Mumbai kahan hai?", "response": "मुंबई महाराष्ट्र में है।"}
+{"id": "capital-hindi", "prompt": "भारत की राजधानी क्या है?", "response": "भारत की राजधानी नई दिल्ली है।"}
+{"id": "capital-english", "prompt": "What is the capital of India?", "response": "The capital of India is New Delhi."}
+{"id": "boiling-hindi-trace", "prompt": "समुद्र तल पर पानी किस तापमान पर उबलता है?", "response": "समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है।", "trace": "The question asks for the boiling point at the sea floor, deep underwater."}
+{"id": "tamil", "prompt": "சென்னை எங்கே உள்ளது?", "response": "சென்னை தமிழ்நாட்டில் உள்ளது."}

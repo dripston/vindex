@@ -1,7 +1,7 @@
 [project]
 name = "vindex"
-version = "0.5.0"
-description = "Evaluation metrics for Indic and code-mixed LLM output."
+version = "0.6.0"
+description = "Evals for Indian-language LLM apps: script adherence, calibrated similarity, an Indic LLM judge and mistranslation checks."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -9,11 +9,14 @@ authors = [
     { name = "dripston" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Natural Language :: Hindi",
+    "Typing :: Typed",
 ]
 dependencies = [
     "indic_transliteration",
@@ -35,10 +38,25 @@ dev = [
     "pytest",
     "build",
     "twine",
+    # OpenAIJudge/AnthropicJudge/LiteLLMJudge (judge_model.py) are
+    # optional-SDK classes -- an end user installs only the one they
+    # use, not all three. dev needs all of them so CI can type-check
+    # and test every class, same as groq already is via the `judge`
+    # extra.
+    "openai",
+    "anthropic",
+    "litellm",
 ]
 
+keywords = ["llm", "evaluation", "evals", "hindi", "hinglish", "indic", "code-mixed", "llm-as-a-judge"]
+
+[project.scripts]
+vindex = "vindex.cli:main"
+
 [project.urls]
-Homepage = "https://github.com/dripston/vindex"
+Homepage = "https://dripston.github.io/vindex/"
+Documentation = "https://dripston.github.io/vindex/docs.html"
+Changelog = "https://github.com/dripston/vindex/blob/master/CHANGELOG.md"
 Repository = "https://github.com/dripston/vindex"
 
 [build-system]
@@ -52,7 +70,7 @@ where = ["src"]
 # Trap-word dictionary CSVs (Milestone 6.1) must ship inside the
 # installed package, not just live in the repo's data/ directory --
 # see trap_words.py's PACKAGING note for the real bug this fixes.
-vindex = ["data/trap_words/*.csv", "data/benchmarks/*"]
+vindex = ["py.typed", "data/NOTICE.md", "data/trap_words/*.csv", "data/benchmarks/*"]
 
 [tool.ruff]
 line-length = 100
@@ -61,12 +79,12 @@ src = ["src", "tests"]
 # and is never linted as part of the package; .agents/.claude are unrelated
 # tooling directories, not project content; script_check.py at repo root is
 # Milestone 1's not-yet-ported engine -- BUILD_PLAN.md 1.1 says port it
-# unchanged, don't touch it in Milestone 0; docs/integrations/ deliberately
+# unchanged, don't touch it in Milestone 0; examples/integrations/ deliberately
 # matches each third-party tool's own coding idiom (e.g. ragas_vindex.py
 # mirrors ragas's own t.Dict/t.Set style from ragas/metrics/_string.py) --
 # copy-paste fidelity to the target tool matters more than this repo's own
 # lint config there.
-extend-exclude = ["experiments", ".agents", ".claude", "script_check.py", "docs/integrations"]
+extend-exclude = ["experiments", ".agents", ".claude", "script_check.py", "examples/integrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -78,6 +96,15 @@ mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = "indic_transliteration.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# litellm is an optional SDK for LiteLLMJudge (judge_model.py) -- a
+# caller installs it themselves only if they use that class, same as
+# openai/anthropic for OpenAIJudge/AnthropicJudge (those two ship their
+# own type stubs so no override is needed for them). Not part of the
+# `judge` extra's own groq dependency.
+module = "litellm.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -1,20 +1,12 @@
-"""
-English-rubric baseline judge prompt, for Milestone 5.8 ONLY.
+"""English-rubric baseline prompt for comparison with the Hindi rubric.
 
-This is not a shipped metric. `indic_judge` (vindex.judge) uses the
-Hindi rubric in judge_rubric.py as its only rubric -- that choice is
-deliberate and documented there. This module exists solely to answer
-Milestone 5.8's question: does the Hindi rubric actually agree with
-human graders more than an English rubric pointed at the same Hindi
-content would, on the same 62 pinned traces from the 6.3 study?
-
-Structurally identical to judge_rubric.py -- same instructions, same
-four few-shot examples (including the समुद्र तल "sea level"/"sea
-floor" case, translated), same JSON output contract, same conservative
-scoring -- with exactly one variable changed: the rubric text and the
-few-shot reasoning are in English instead of Hindi, and there is no
-instruction to reason in Hindi. That is the single difference this
-baseline is meant to isolate.
+Not used by :func:`vindex.indic_judge`, which uses only the Hindi rubric
+in :mod:`vindex.judge_rubric`. This baseline is structurally identical
+(same instructions, the same four few-shot examples including the
+समुद्र तल case, the same JSON output contract) except that the rubric and
+few-shot reasoning are in English and there is no instruction to reason
+in Hindi. Use it to measure the effect of rubric language on your own
+data, e.g. with :func:`vindex.datasets.score_judge_benchmark`.
 """
 
 from __future__ import annotations
@@ -76,11 +68,15 @@ Output only the JSON object, nothing else."""
 
 
 def build_reference_free_prompt_en_baseline(question: str, answer: str) -> str:
-    """Build the English-rubric reference-free judge prompt (Milestone
-    5.8's baseline ONLY -- not used by indic_judge). Structurally
-    identical to judge_rubric.build_reference_free_prompt except the
-    rubric language is English, isolating rubric language as the one
-    variable under test."""
+    """Build the English-rubric reference-free baseline prompt.
+
+    Args:
+        question: The question asked.
+        answer: The answer to grade.
+
+    Returns:
+        The complete prompt string.
+    """
     return RUBRIC_EN_REFERENCE_FREE.format(
         few_shot=_FEW_SHOT_EN, question=question, answer=answer
     )

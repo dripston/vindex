@@ -1,10 +1,8 @@
 """
 Tests for vindex.judge's pure parsing logic (_parse_judge_response,
 _family). Unlike test_judge.py, these do NOT call a real judge model --
-they test parsing/heuristic logic directly on crafted strings, which is
-not "mocking judge behavior" (this project's stated no-mocks preference
-is about not faking what a real LLM would say), just unit-testing a
-pure function. No GROQ_API_KEY needed.
+they test parsing/heuristic logic directly on crafted strings. No
+GROQ_API_KEY needed.
 """
 
 from __future__ import annotations
@@ -35,12 +33,9 @@ def test_parse_judge_response_score_at_low_end_of_range() -> None:
 
 
 def test_parse_judge_response_raw_score_4_normalizes_below_the_pass_gate() -> None:
-    # Documents the exact behavior indic_judge's docstring previously
-    # misstated (found by an independent outside review): a raw score
-    # of 4 normalizes to (4-1)/(5-1) = 0.75, which is below the 0.8
-    # pass-gate threshold -- only a raw 5 (normalized 1.0) passes at
-    # high confidence. This is not a bug; the code was always correct.
-    # Only the docstring's "a raw 4 or 5 out of 5" claim was wrong.
+    # A raw score of 4 normalizes to (4-1)/(5-1) = 0.75, below the 0.8
+    # pass gate -- only a raw 5 (normalized 1.0) passes at high
+    # confidence.
     raw = json.dumps({"score": 4, "confidence": "high", "reasoning": "good"})
     score, _, confidence, _ = _parse_judge_response(raw)
     assert score == 0.75
@@ -155,9 +150,8 @@ def test_family_finetune_suffix_is_not_stripped_known_limitation() -> None:
 
 
 def test_family_gpt4o_mini_pairing_is_not_caught_known_limitation() -> None:
-    # KNOWN LIMITATION (found by an independent outside review, see
-    # _family's docstring's "MISSES THE MOST COMMON REAL PAIRING"
-    # paragraph): "gpt-4o" vs "gpt-4o-mini" is not caught -- "mini" is
+    # KNOWN LIMITATION (see _family's docstring): "gpt-4o" vs
+    # "gpt-4o-mini" is not caught -- "mini" is
     # not a bare size digit, so neither name gets stripped, and this is
     # probably the single most common self-judging pair in production.
     assert _family("gpt-4o") != _family("gpt-4o-mini")
@@ -168,7 +162,7 @@ def test_family_instruct_suffix_after_size_token_is_not_caught_known_limitation(
 
 
 # --- indic_judge: exact-match gold path must not require a judge/API
-# key at all (found by an independent outside review) ---
+# key at all ---
 
 
 def test_indic_judge_exact_match_gold_needs_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -207,8 +201,7 @@ def test_indic_judge_reference_free_mode_still_requires_api_key(
         indic_judge("भारत की राजधानी क्या है?", "नई दिल्ली")
 
 
-# --- align(): case sensitivity (found and documented, not changed, by
-# an independent outside review) ---
+# --- align(): case sensitivity (documented behavior) ---
 
 
 def test_align_is_case_sensitive_known_behavior() -> None:

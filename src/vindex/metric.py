@@ -1,94 +1,44 @@
-"""
-script_adherence: did response come back in script/language prompt used?
+"""script_adherence: did the response come back in the prompt's script?
 
-Combines script.py (script classification) and language.py (v0 Hindi
-function-word heuristic) into one public MetricResult-returning metric.
+Combines script classification (:mod:`vindex.script`) and the Hinglish
+heuristic (:mod:`vindex.language`) into a reference-free metric. It
+checks script and language modality only, never correctness: a single
+Devanagari letter answering a Devanagari question passes. Pair it with
+:func:`vindex.indic_judge` or :func:`vindex.calibrated_similarity` to
+check content.
 
-WHAT `passed=True` DOES NOT MEAN: this metric checks script/language
-modality ONLY, never content adequacy or correctness (see this
-function's own docstring). A single real Devanagari letter (e.g. "क")
-answering any Devanagari-script question genuinely IS in the correct
-script, so it scores `matched, passed=True` -- this is not a bug, it
-is exactly what the metric is scoped to check, but it means a
-one-character non-answer in the right script passes cleanly. This is
-different from the no_script_signal cases below (emoji/CJK/digits/
-punctuation), which fail because they have NO recognizable script
-content at all, not because they're short. Do not use this metric as
-a proxy for "the response is a real, adequate answer" -- pair it with
-a correctness check (indic_judge, calibrated_similarity) for that.
+The prompt is assigned a bucket:
 
-Prompt bucket (from classify(prompt)):
-  native-script : prompt's dominant label is an Indic script (devanagari,
-                  tamil, kannada, ...) -- not roman/mixed/empty.
-  romanized     : classify(prompt) == "roman" AND prompt has no Hindi
-                  function words (language.looks_like_hinglish is False).
-  code-mixed    : classify(prompt) == "mixed", OR classify(prompt) ==
-                  "roman" AND prompt has Hindi function words (Romanized
-                  Hindi/Hinglish prompt).
+- ``native-script``: the prompt's dominant script is Indic.
+- ``romanized``: Latin script with no Hindi function words.
+- ``code-mixed``: mixed scripts, or Latin script containing Hindi
+  function words (Hinglish).
 
-Pass rule (from BUILD_PLAN 1.4), by prompt bucket:
-  native-script prompt -> response native (same script) or mixed passes
-  romanized prompt     -> response roman passes
-  code-mixed prompt    -> response roman or mixed passes
+Pass rules by bucket:
 
-NOTE (not a bug): a code-mixed/Romanized-Hindi prompt answered in pure
-Devanagari FAILS (script_mismatch), not passes. This is deliberate,
-not an oversight -- it is the exact failure mode this package's
-headline finding is about: a Romanized-Hindi ("Hinglish") prompt
-answered in unwanted Devanagari script (see README.md's "finding this
-package is built around" and its 20%/100% adherence table). If your
-use case genuinely wants to accept a Devanagari answer to a Romanized
-prompt, this metric's code-mixed bucket is not the right tool for
-that -- it exists specifically to catch this case as a failure.
+- native-script: the response is in the same script, or mixed.
+- romanized: the response is Roman.
+- code-mixed: the response is Roman or mixed.
+
+A Hinglish prompt answered in pure Devanagari fails with
+``script_mismatch``. This is deliberate: it is the failure the metric is
+designed to catch.
 
 Labels:
-  empty             : prompt or response is empty/whitespace-only
-  matched           : response passes its prompt bucket's rule, and (for
-                       native-script prompts) is the *same* Indic script
-                       as the prompt
-  mixed             : response classify() == "mixed" and prompt bucket
-                       accepts mixed -- counted as a pass, labeled
-                       distinctly from a same-script "matched" since it's
-                       code-mixed, not a clean script match
-  script_mismatch   : response modality is wrong for the prompt bucket
-                       (e.g. Devanagari prompt answered in Roman, or Roman
-                       prompt answered in Devanagari/a different Indic
-                       script)
-  language_mismatch : romanized or code-mixed prompt has Hindi function
-                       words (i.e. is Romanized Hindi/Hinglish, not plain
-                       English), response is "roman" (passes the script
-                       check) but contains zero Hindi function words --
-                       right script, wrong language. v0 heuristic, see
-                       language.py's limitations; only fires when the
-                       language.py signal is available (Latin-script
-                       responses to romanized/code-mixed prompts). KNOWN
-                       FALSE POSITIVE: a single incidental function-word
-                       match in the PROMPT is enough to trigger this
-                       bucket -- "Who directed Se7en?" contains "se"
-                       only because the digit splits the word, and "What
-                       is the ka in Egyptian belief?" contains "ka" as
-                       an ordinary English word. Both wrongly bucket as
-                       code-mixed and then fail a genuinely correct
-                       English response. Not fixed by requiring 2+ words
-                       (that breaks short, genuine Hinglish questions
-                       like this package's own "Mumbai kahan hai?"
-                       example, which has exactly one) -- an honest v0
-                       heuristic limitation, not a solved problem.
-  no_script_signal  : response classify() == "mixed" only because it has
-                       NO alphabetic characters in any recognized script
-                       (e.g. emoji-only, CJK/Cyrillic-only, digits-only,
-                       punctuation-only) -- classify() has nothing to rank
-                       (dominant_n == 0 and latin_alpha_chars == 0), so it
-                       falls through to "mixed" by construction, not
-                       because the response is genuinely code-mixed
-                       content. Without this distinction, a broken/
-                       off-topic/wrong-language response with no real
-                       script content would be silently scored passed=True
-                       under the same "mixed counts as a pass" rule that
-                       exists for real Hinglish code-mixing -- this label
-                       exists specifically so that rule does not also
-                       cover responses with no script content to judge at
-                       all. Always passed=False.
+
+- ``empty``: prompt or response is empty or whitespace-only.
+- ``matched``: the response passes and, for native-script prompts, uses
+  the same script.
+- ``mixed``: the response is code-mixed and the bucket accepts it
+  (counted as a pass).
+- ``script_mismatch``: the response's script is wrong for the bucket.
+- ``language_mismatch``: only with ``strict_language_check=True``. A
+  Hinglish prompt is answered in Roman script with no Hindi function
+  words (right script, wrong language).
+- ``no_script_signal``: the prompt or response has no letters in any
+  recognized script (emoji, digits, punctuation only, or an unsupported
+  script such as Cyrillic or CJK), so no verdict can be made. Always
+  fails.
 """
 
 from __future__ import annotations
@@ -103,11 +53,11 @@ _INDIC_SCRIPTS = frozenset(SCRIPT_RANGES)
 
 
 def _non_letter_script_count(text: str, script_chars: int, script_pattern: str) -> int:
-    """script_chars minus any character that isn't actually a letter in
-    that script -- decimal digits (Unicode category Nd) and the danda/
-    double danda (।॥, shared punctuation across several Indic scripts,
-    see script.py's module docstring) -- see _has_no_script_signal's
-    docstring for why this matters."""
+    """Return ``script_chars`` minus the script's digits and danda marks.
+
+    Indic Unicode blocks include decimal digits (category ``Nd``) and the
+    shared danda/double danda (।॥); neither is a letter.
+    """
     import re
 
     from vindex.script import _DANDA_RE
@@ -121,37 +71,14 @@ def _non_letter_script_count(text: str, script_chars: int, script_pattern: str) 
 
 
 def _has_no_script_signal(text: str) -> bool:
-    """True if text has zero alphabetic characters in any recognized
-    script -- classify() then labels it "mixed" only because it has
-    nothing to rank (see this module's "no_script_signal" label docs),
-    not because it is genuinely code-mixed content. Also true for a
-    response that is purely danda punctuation (see
-    script.is_only_danda_punctuation) -- classify() confidently returns
-    "devanagari" for "।" alone, but a lone sentence-ending mark is not a
-    real Devanagari response either.
+    """Return True if ``text`` has no letters in any recognized script.
 
-    FIXED (a real bug, found by an independent outside review): every
-    Indic script's Unicode block includes that script's own decimal
-    digits (e.g. Devanagari 0-9 are U+0966-U+096F, inside the same
-    U+0900-U+097F block as the letters). count_scripts() counts them as
-    ordinary script characters, so a response that is purely Indic
-    digits -- "१४०००००००००" for a Hindi prompt, "১২৩" for a Bengali one
-    -- had dominant_n > 0 and classify() confidently returned
-    "devanagari"/"bengali"/etc., the same as a real Devanagari sentence.
-    ASCII digits ("42") were already caught correctly (they fall into
-    other_chars, not any script bucket) -- only the Indic-digit case was
-    missed. This also folds in a combination the pre-existing danda-only
-    check (is_only_danda_punctuation) didn't cover on its own: a
-    response that is an Indic digit plus a danda (e.g. "१।") has a
-    non-danda, non-digit character in the block, so
-    is_only_danda_punctuation alone said False even though there is
-    still no real letter anywhere. Now: a script's characters only
-    count as real script signal here if at least one of them is a
-    genuine letter -- not a decimal digit (category Nd) and not a
-    danda/double danda. A response that mixes real letters with Indic
-    digits (e.g. an actual Hindi sentence containing "१४०") is
-    unaffected -- this only changes the verdict for responses with no
-    real letters at all."""
+    Indic digits (e.g. ``"१४०"``) and danda punctuation are not counted
+    as letters, so responses such as ``"१४०००"`` or ``"१।"`` have no
+    script signal even though :func:`vindex.script.classify` assigns them
+    a script. Text that mixes real letters with Indic digits is
+    unaffected.
+    """
     if is_only_danda_punctuation(text):
         return True
     counts = count_scripts(text)
@@ -179,34 +106,26 @@ def _prompt_bucket(prompt: str) -> str:
 def script_adherence(
     prompt: str | None, response: str | None, strict_language_check: bool = False
 ) -> MetricResult:
-    """Did response come back in the script/language the prompt used?
+    """Check whether the response uses the script/language of the prompt.
 
-    No reference answer needed -- this checks a property of the response
-    itself (and its relation to the prompt), not response correctness.
+    No reference answer is needed. See the module docstring for prompt
+    buckets, pass rules, and labels.
 
-    strict_language_check (default False -- SAFE DEFAULT, changed after
-    repeated independent outside review): when True, restores the
-    original `language_mismatch` hard-fail behavior -- a code-mixed/
-    Romanized-Hindi prompt (per `language.looks_like_hinglish`, a
-    14-word heuristic) answered in plain Roman-script English scores
-    `passed=False`. This heuristic has a PROVEN, unfixed false-positive
-    rate: a single incidental function-word match anywhere in the
-    prompt is enough to trigger it, and this project's own README
-    documents real cases where a genuinely correct English answer gets
-    hard-failed as a result ("Who directed Se7en?" matches "se" only
-    because a digit splits the word; "What is the ka in Egyptian
-    belief?" matches "ka" as an ordinary English word). Multiple
-    independent reviews of this package concluded the same thing: use
-    this metric as a script/modality gate, and turn `language_mismatch`
-    off unless you have verified it doesn't false-positive on your own
-    data. Default changed to reflect that recommendation directly,
-    rather than requiring every caller to have read five rounds of
-    review to know to disable it. When False (the default), a case that
-    would have been `language_mismatch` is instead scored `matched` (a
-    Roman-script response to a code-mixed/Hinglish prompt still passes
-    the script check, which is what actually happened) -- pass
-    `strict_language_check=True` to opt back into the stricter,
-    documented-false-positive-prone behavior.
+    Args:
+        prompt: The prompt. ``None`` is treated as empty.
+        response: The model's response. ``None`` is treated as empty.
+        strict_language_check: If True, a Hinglish prompt answered in
+            Roman-script English fails with ``language_mismatch``. Off by
+            default because the underlying heuristic has known false
+            positives: one incidental function-word match in the prompt
+            ("Who directed Se7en?" -> "se") is enough to treat an English
+            prompt as Hinglish. When False, such responses are labelled
+            ``matched``. Enable it only after verifying it on your data.
+
+    Returns:
+        A :class:`vindex.result.MetricResult`. ``detail`` contains
+        ``prompt_label``, ``response_label``, and (once the prompt has
+        script signal) ``prompt_bucket``.
     """
     prompt = coerce_text(prompt)
     response = coerce_text(response)
@@ -224,20 +143,8 @@ def script_adherence(
         )
 
     if _has_no_script_signal(prompt):
-        # FIXED (a real bug, found by an independent outside review):
-        # _has_no_script_signal was only ever applied to the response.
-        # A prompt with no recognized script content at all (emoji-only,
-        # digit-only, punctuation-only, or a real but unrecognized
-        # script like Cyrillic/CJK) has classify(prompt) == "mixed" by
-        # construction -- exactly the same "nothing to rank" fallthrough
-        # documented for the response side -- and _prompt_bucket read
-        # that as "code-mixed", i.e. Romanized Hindi/Hinglish. A
-        # Russian, Japanese, or emoji-only prompt was confidently
-        # bucketed as a Hinglish prompt and then scored a clean
-        # `matched, passed=True` for an English response, with a reason
-        # string that asserted "prompt is code-mixed" -- false. Applying
-        # the same guard to the prompt that already existed for the
-        # response closes this the same way.
+        # A prompt with no script signal would otherwise classify as
+        # "mixed" and be bucketed as code-mixed (Hinglish).
         return MetricResult(
             score=0.0,
             passed=False,
@@ -305,23 +212,9 @@ def script_adherence(
             and looks_like_hinglish(prompt)
         ):
             if not looks_like_hinglish(response):
-                # Tried, and reverted, during an earlier fix pass: a
-                # "downgrade to a soft label when the prompt has only 1
-                # function-word match" rule. It does not work --
-                # this package's own canonical Hinglish case ("Mumbai
-                # kahan hai?", which SHOULD hard-fail an all-English
-                # response under strict_language_check=True) has
-                # exactly one match ("hai"), the same count as the
-                # "Se7en"/"ka" false positives (which SHOULD NOT
-                # hard-fail). Match count on the prompt does not
-                # distinguish a genuine single-function-word Hinglish
-                # question from an incidental match -- see language.py's
-                # module docstring for why a 2+-match threshold was
-                # already tried and reverted for the same underlying
-                # reason. Because this can't be fixed by a threshold,
-                # it is now opt-in (strict_language_check=True) rather
-                # than the default -- see script_adherence's own
-                # docstring for why the default changed.
+                # Prompt match count cannot separate a genuine one-word
+                # Hinglish signal ("Mumbai kahan hai?") from an incidental
+                # match ("Se7en"), which is why this check is opt-in.
                 return MetricResult(
                     score=0.0,
                     passed=False,

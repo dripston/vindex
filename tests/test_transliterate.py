@@ -1,6 +1,6 @@
 """
 Tests for vindex.transliterate. Covers the ITRANS wrapper itself and
-its Milestone 2.5 loanword-substitution integration (see
+its loanword-substitution integration (see
 src/vindex/loanwords.py for the lookup table and its rationale).
 """
 
@@ -23,7 +23,7 @@ def test_transliterate_converts_to_kannada() -> None:
     assert result == "ಧನ್ಯವಾದ"
 
 
-# --- loanword substitution (Milestone 2.5) ---
+# --- loanword substitution ---
 
 
 def test_transliterate_substitutes_known_loanword_before_itrans() -> None:
@@ -47,5 +47,5 @@ def test_transliterate_loanword_substitution_only_applies_to_devanagari() -> Non
 def test_transliterate_unknown_word_unaffected_by_loanword_table() -> None:
     # "tune" is a genuine many-to-many ambiguity (loanword "tune" vs
     # pronoun+postposition "तूने") not in the loanword table -- must be
-    # left to plain ITRANS, unchanged by this milestone.
+    # left to plain ITRANS.
     assert transliterate("tune", DEVANAGARI) == "तुने"

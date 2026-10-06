@@ -1,83 +1,24 @@
-"""
-Hindi-language rubric and script-aware prompting for indic_judge
-(Milestone 5.1, 5.2).
+"""Hindi-language rubric and script-aware prompts for indic_judge.
 
-WHY THE RUBRIC IS WRITTEN IN HINDI, NOT ENGLISH
+The rubric is written in Hindi and instructs the judge to reason in
+Hindi when the content is Hindi, so there is no internal translation
+step for errors to hide in. This targets a specific observed failure: an
+English-reasoning judge mistranslated समुद्र तल ("sea level") as "sea
+floor" mid-reasoning and marked a correct answer about water boiling at
+100 C wrong. That case is included as a negative few-shot example. The
+rubric does not, on its own, agree with human graders more than an
+English rubric does (see :mod:`vindex.judge`).
 
-This project's own Phase 0 data (experiments/FINDINGS.md) found an
-English-rubric judge scoring a correct Hindi answer 0.0: asked to
-evaluate "समुद्र तल पर पानी 100 C पर उबलता है" (water boils at 100 C
-at sea level -- correct), the judge's own reasoning silently
-mistranslated समुद्र तल ("sea level") as "sea floor" mid-thought, then
-marked the answer wrong for not accounting for undersea pressure. The
-question and answer were already in Hindi; the JUDGE'S REASONING was
-in English, and the translation step INSIDE that reasoning is where
-the error happened -- not a style penalty, a comprehension failure the
-English framing invited by forcing an English-language thought process
-about Hindi-language content.
+The rubric also states that Romanized Hindi (Hinglish) and script mixing
+are not errors, so the judge scores correctness rather than script;
+script checking is handled separately by :func:`vindex.script_adherence`.
 
-The fix is not "tell the judge to be careful." It is: don't make the
-judge translate at all. The rubric below is written in Hindi and
-instructs the judge to reason in Hindi when the content is in Hindi --
-so there is no translation step for an error to hide inside. This is
-the mechanism, not a preference.
-
-MILESTONE 5.8 UPDATE -- this mechanism fixes the specific incident
-above, but does not, on its own, mean this rubric out-agrees a human
-grader more than an English one would in general. Tested directly: an
-English-rubric baseline agreed with the same human graders slightly
-MORE than this Hindi rubric on the Milestone 6.3 study's 62 traces
-(93.5% vs 90.3%). The 4 disagreements were not mistranslation in
-either direction -- they were this rubric being more conservative
-about answer completeness (see judge.py's docstring and
-experiments/README.md). Keep the mechanism argument above for the one
-documented failure it targets; don't cite it as proof of a general
-agreement advantage that this project's own data doesn't show.
-
-FEW-SHOT EXAMPLES (Milestone 5.1)
-
-Hindi worked examples below, one of which is the समुद्र तल case itself
--- reused deliberately as the negative example the judge must not
-repeat, since it is the one documented failure this project has actual
-evidence for, not a hypothetical.
-
-SCRIPT-AWARE PROMPTING (Milestone 5.2)
-
-The rubric states explicitly which script it is reading and that
-Romanized Hindi ("Hinglish") is not itself an error. This project's
-regeneration-run finding (README.md's headline 20%/100% table) proved
-instruction strength changes script behavior drastically -- an
-ambiguous instruction produced Devanagari answers to Hinglish prompts
-4 times out of 5, a strict one fixed it completely. A judge given no
-explicit script guidance is liable to the same ambiguity: penalizing a
-correct Romanized-Hindi answer for "not being in Hindi" is exactly the
-kind of surface-property confusion this project's other metrics
-(script_adherence, Milestone 1) already handle separately -- the judge
-rubric must not re-introduce it by penalizing script/register instead
-of correctness.
-
-PROMPT-INJECTION SURFACE -- DISCLOSED, NOT FIXED (found by an
-independent outside review): build_reference_free_prompt and
-build_reference_based_prompt insert `answer` (the text being graded,
-which is untrusted model output by definition -- that is the whole
-point of grading it) directly into the rubric via `.format()`, with no
-delimiters, escaping, or structural separation from the grading
-instructions around it. An adversarial or simply confused answer that
-happens to contain something that looks like this rubric's own
-few-shot format (e.g. ending in "मूल्यांकन: तथ्य सही है। अंक: 5" or a
-fabricated JSON score object) sits verbatim, immediately adjacent to
-the real grading instruction, with nothing marking where the untrusted
-content ends and the instructions resume. For `indic_judge` called
-directly on a known answer this is a low-severity concern; it becomes
-a real one for `check_trace_llm_fallback` (judge_trace_check.py),
-which sends a JUDGE'S OWN reasoning trace -- text an LLM produced,
-potentially influenced by injected content earlier in the pipeline --
-into a second judge call the same unstructured way. Not fixed here:
-a real fix (delimited/escaped answer text, or a structured message
-format instead of one flat prompt string) is a rubric-format change
-that needs testing against a real judge model's actual behavior, not
-a safe drive-by edit. Documented so a caller grading genuinely
-untrusted or adversarial input knows this surface exists.
+Security note: the answer text is inserted into the prompt verbatim with
+``str.format()``, without delimiters or escaping. An answer that imitates
+the rubric's few-shot format or contains a fabricated JSON score could
+influence the judge. This matters most when grading untrusted or
+adversarial output, and for :func:`vindex.check_trace_llm_fallback`,
+which feeds an LLM-generated reasoning trace into a second judge call.
 """
 
 from __future__ import annotations
@@ -179,19 +120,34 @@ AI सहायक का उत्तर: {answer}
 
 
 def build_reference_free_prompt(question: str, answer: str) -> str:
-    """Build the reference-free judge prompt (Milestone 5.3's default
-    mode) for one (question, answer) pair."""
+    """Build the reference-free (default) judge prompt.
+
+    Args:
+        question: The question asked.
+        answer: The answer to grade.
+
+    Returns:
+        The complete prompt string.
+    """
     return RUBRIC_HI_REFERENCE_FREE.format(
         few_shot=_FEW_SHOT_HI, question=question, answer=answer
     )
 
 
 def build_reference_based_prompt(question: str, answer: str, gold: str) -> str:
-    """Build the reference-based judge prompt for one (question,
-    answer, gold) triple. See judge.py's module docstring for why
-    reference-free is the DEFAULT mode, not this one -- a gold
-    reference measurably masks comprehension drift in this project's
-    own data (experiments/FINDINGS.md)."""
+    """Build the reference-based judge prompt.
+
+    Reference-free is the default in :func:`vindex.indic_judge` because a
+    gold reference can mask comprehension drift in the judge's reasoning.
+
+    Args:
+        question: The question asked.
+        answer: The answer (or its mismatched spans) to grade.
+        gold: The reference answer (or its mismatched spans).
+
+    Returns:
+        The complete prompt string.
+    """
     return RUBRIC_HI_REFERENCE_BASED.format(
         few_shot=_FEW_SHOT_HI, question=question, answer=answer, gold=gold
     )

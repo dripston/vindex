@@ -1,42 +1,27 @@
-"""
-Deterministic script (writing-system) classifier. No LLM involved.
+"""Deterministic writing-system (script) classifier.
 
-Used to verify that a model's response is actually written in the script
-the experiment asked for -- e.g. that a "Romanized Hinglish" answer is
-actually in Roman letters, not Devanagari.
+Counts characters per Unicode block to decide which script a string is
+written in, for example to verify that a "Romanized Hinglish" answer is
+in Latin letters rather than Devanagari. No model or LLM is involved.
 
-Ported from the repo root's script_check.py (Milestone 1.1); the
-Devanagari-vs-Latin character-counting logic there is unchanged here --
-it's tested and validated on 90 real responses. Milestone 1.2 generalizes
-that same ratio logic ("dominant script wins if it outnumbers Latin;
-Latin wins if it outnumbers the dominant script more than 2:1; otherwise
-mixed") from a Devanagari-only special case to any of the 8 additional
-Indic scripts below, keeping the original thresholds and tie-breaking.
+Recognizes 9 Indic scripts plus Latin; text in other scripts (e.g.
+Cyrillic, CJK) counts as "other" and typically classifies as
+``"mixed"``. Unicode blocks:
 
-Unicode block ranges (verified against unicode.org/Wikipedia's Unicode
-block pages):
-  Devanagari : U+0900-U+097F
-  Gurmukhi   : U+0A00-U+0A7F
-  Gujarati   : U+0A80-U+0AFF
-  Odia       : U+0B00-U+0B7F  (Unicode block name: "Oriya")
-  Tamil      : U+0B80-U+0BFF
-  Telugu     : U+0C00-U+0C7F
-  Kannada    : U+0C80-U+0CFF
-  Malayalam  : U+0D00-U+0D7F
-  Bengali    : U+0980-U+09FF
+- Devanagari: U+0900-U+097F
+- Bengali: U+0980-U+09FF
+- Gurmukhi: U+0A00-U+0A7F
+- Gujarati: U+0A80-U+0AFF
+- Odia: U+0B00-U+0B7F (Unicode block name "Oriya")
+- Tamil: U+0B80-U+0BFF
+- Telugu: U+0C00-U+0C7F
+- Kannada: U+0C80-U+0CFF
+- Malayalam: U+0D00-U+0D7F
 
-KNOWN LIMITATION: the danda and double danda (।, ॥ -- U+0964, U+0965) are
-placed in the Unicode Devanagari block, but are used as sentence-ending
-punctuation across most of the scripts above (Bengali, Odia, Gurmukhi,
-Gujarati, etc. generally don't have their own script-specific full stop
-and reuse these). A pure-Bengali/Odia/Gurmukhi/etc. sentence can
-therefore show 1-2 stray devanagari_chars from its own punctuation. This
-does not change classify()'s output in practice -- the dominant script's
-character count is far larger than a couple of punctuation marks in any
-real sentence -- but it means devanagari_chars is not a perfectly pure
-signal of "this text contains Devanagari letters." Documented here
-rather than special-cased, to keep the ported character-counting logic
-exactly as validated in Milestone 1.1.
+Limitation: the danda and double danda (।॥, U+0964-U+0965) live in the
+Devanagari block but are used as sentence punctuation by several other
+scripts, so non-Devanagari text can contain a few ``devanagari_chars``.
+This does not affect :func:`classify` on real sentences.
 """
 
 from __future__ import annotations
@@ -65,18 +50,14 @@ _DANDA_RE = re.compile(r"[।॥]")
 
 
 def is_only_danda_punctuation(text: str) -> bool:
-    """True if text's only Devanagari-block character(s) are the danda
-    or double danda (।/॥ -- sentence-ending punctuation, not a letter),
-    with no other script/Latin content either.
+    """Return True if ``text`` consists only of danda punctuation.
 
-    A response that is purely "।" has devanagari_chars == 1 and nothing
-    else, so classify() confidently returns "devanagari" (dominant_n=1 >
-    latin_alpha_chars=0) even though there is no actual Devanagari (or
-    any) letter in it -- see script.py's module docstring on the danda's
-    shared cross-script punctuation role. This helper lets a caller
-    (metric.py's script_adherence) distinguish that degenerate case from
-    a real Devanagari response, without changing classify()'s or
-    count_scripts()'s pinned behavior for real text.
+    A string such as ``"।"`` classifies as ``"devanagari"`` even though it
+    contains no letters. This lets callers (e.g.
+    :func:`vindex.script_adherence`) treat it as having no script signal.
+
+    Args:
+        text: Text to check. Empty or whitespace-only text returns False.
     """
     text = text or ""
     if text.strip() == "":
@@ -92,15 +73,16 @@ def is_only_danda_punctuation(text: str) -> bool:
 
 
 def count_scripts(text: str | None) -> dict[str, int]:
-    """Count characters by script bucket.
+    """Count characters by script.
 
-    <script>_chars    : one key per script in SCRIPT_RANGES (devanagari,
-                         gurmukhi, gujarati, odia, tamil, telugu, kannada,
-                         malayalam, bengali), each counting characters in
-                         that script's Unicode block.
-    latin_alpha_chars : ASCII alphabetic (A-Z, a-z)
-    other_chars       : everything else (digits, punctuation, whitespace,
-                         symbols, any script not listed above)
+    Args:
+        text: Text to count. ``None`` is treated as empty.
+
+    Returns:
+        A dict with one ``<script>_chars`` key per script in
+        :data:`SCRIPT_RANGES`, plus ``latin_alpha_chars`` (ASCII A-Z, a-z)
+        and ``other_chars`` (digits, punctuation, whitespace, symbols, and
+        unrecognized scripts).
     """
     text = text or ""
     counts = {f"{name}_chars": len(pattern.findall(text)) for name, pattern in SCRIPT_RES.items()}
@@ -114,20 +96,17 @@ def count_scripts(text: str | None) -> dict[str, int]:
 def classify(text: str | None) -> str:
     """Classify a string's dominant script.
 
-    empty      : blank or whitespace only
-    <script>   : one non-Latin script (e.g. "devanagari", "tamil") has more
-                 characters than Latin, AND is the largest non-Latin
-                 script present (ties broken by SCRIPT_RANGES iteration
-                 order, devanagari first, matching the original
-                 Devanagari-only behavior for pure-Devanagari text)
-    roman      : latin_alpha_chars > dominant_script_chars * 2
-    mixed      : otherwise (includes ties, and cases where
-                 dominant_script_chars <= latin_alpha_chars <=
-                 dominant_script_chars * 2)
+    Let ``d`` be the character count of the most frequent Indic script
+    (ties go to the earlier script in :data:`SCRIPT_RANGES`, Devanagari
+    first) and ``l`` the Latin letter count.
 
-    For Devanagari-vs-Latin-only text, this reproduces the original
-    script_check.py behavior exactly: dominant_script_chars is
-    devanagari_chars, so "d > l" / "l > d * 2" are unchanged.
+    Args:
+        text: Text to classify.
+
+    Returns:
+        ``"empty"`` for ``None`` or whitespace-only text; the script name
+        (e.g. ``"devanagari"``, ``"tamil"``) if ``d > l``; ``"roman"`` if
+        ``l > 2 * d``; otherwise ``"mixed"``.
     """
     if text is None or text.strip() == "":
         return "empty"
@@ -135,7 +114,7 @@ def classify(text: str | None) -> str:
     dominant_script, dominant_n = max(
         ((name, counts[f"{name}_chars"]) for name in SCRIPT_RANGES), key=lambda kv: kv[1]
     )
-    l = counts["latin_alpha_chars"]  # noqa: E741 -- ported unchanged from script_check.py
+    l = counts["latin_alpha_chars"]  # noqa: E741
     if dominant_n > l:
         return dominant_script
     if l > dominant_n * 2:
@@ -144,13 +123,15 @@ def classify(text: str | None) -> str:
 
 
 def expected_script(variant: str) -> set[str]:
-    """Required output classification for a given question variant.
+    """Return the acceptable classifications for a question variant.
 
-    en       -> roman        (English must be written in Latin letters)
-    hi       -> devanagari   (Hindi must be written in Devanagari)
-    hinglish -> roman or mixed (Romanized Hinglish; code-mixing with
-                English words/numbers is normal and acceptable, but
-                Devanagari script is not)
+    - ``"en"``: ``{"roman"}``
+    - ``"hi"``: ``{"devanagari"}``
+    - ``"hinglish"``: ``{"roman", "mixed"}`` (code-mixing is acceptable;
+      Devanagari is not)
+
+    Raises:
+        ValueError: If ``variant`` is not one of the above.
     """
     if variant == "en":
         return {"roman"}
@@ -162,8 +143,11 @@ def expected_script(variant: str) -> set[str]:
 
 
 def is_script_adherent(text: str | None, variant: str) -> bool:
-    """True if classify(text) is in expected_script(variant), and text is
-    non-empty."""
+    """Return True if non-empty ``text`` classifies as expected for ``variant``.
+
+    Raises:
+        ValueError: If ``variant`` is unknown (see :func:`expected_script`).
+    """
     label = classify(text)
     if label == "empty":
         return False

@@ -1,88 +1,44 @@
-"""
-indic_judge: an LLM judge built for Indic, not an English judge pointed
-at Hindi (Milestone 5).
+"""indic_judge: an LLM judge built for Indic content.
 
-WHY THIS METRIC EXISTS
+The other vindex metrics check surface properties (script, normalized
+string match, embedding similarity). :func:`indic_judge` answers whether
+an answer is actually correct. Semantic correctness without a reference
+cannot be checked deterministically, so this is the one metric in the
+package that calls an LLM.
 
-script_adherence (Milestone 1), script_normalized_match's pieces
-(Milestone 2), and calibrated_similarity (Milestone 3) all check
-surface properties: right script, strings match after normalization,
-embeddings close enough. None of them answers "is the answer
-correct" -- that is the question human linguists get paid to answer,
-and it is the gap this whole project is aimed at closing. A library
-without an answer to that question does not close that gap.
+How it differs from a generic LLM judge:
 
-THIS METRIC IS AN LLM JUDGE. That is correct and unavoidable: semantic
-correctness with no reference answer cannot be done deterministically.
-Every other metric in this package is deterministic on purpose; this
-one is not, and says so plainly rather than pretending otherwise.
+- **Hindi rubric.** The rubric (:mod:`vindex.judge_rubric`) is written in
+  Hindi rather than an English rubric applied to Hindi content. An
+  English-reasoning judge was observed mistranslating समुद्र तल ("sea
+  level") as "sea floor" mid-reasoning and scoring a correct answer 0.
+- **Script-aware.** The rubric states that Romanized Hindi is not an
+  error; script checking is left to :func:`vindex.script_adherence`.
+- **Reference-free by default.** A gold reference can mask comprehension
+  drift: the judge may reach the right verdict by pattern-matching the
+  gold string while its reasoning is already wrong. Reference-based
+  mode is available by passing ``gold``.
+- **Align-then-judge** (reference-based mode). The answer is first
+  diffed against gold (:mod:`vindex.judge_align`); an exact word-level
+  match skips the LLM call, and a partial mismatch sends only the
+  disagreeing spans.
+- **Conservative gate.** Passes only at high judge-reported confidence
+  and a top score; anything ambiguous is labelled ``"flagged"``.
+- **Determinism.** The default judge runs at temperature 0 and the
+  judge model id is recorded in every result's ``detail``.
 
-WHAT'S DIFFERENT FROM A GENERIC LLM JUDGE
+Self-enhancement bias: never judge a model with itself or a model from
+the same family. A best-effort, name-based check adds a
+``self_enhancement_bias_warning`` to ``detail`` when you pass
+``answering_model_id``; its absence does not mean the pairing is safe.
+See :data:`JUDGE_SELECTION_GUIDANCE` for choosing a judge model.
 
-- The rubric (vindex.judge_rubric) is written IN Hindi, not an English
-  rubric pointed at Hindi content -- this project's own Phase 0 data
-  found an English-reasoning judge silently mistranslating समुद्र तल
-  ("sea level") as "sea floor" mid-thought and scoring a correct
-  answer 0.0. See judge_rubric.py's module docstring for the full
-  mechanism, not just the symptom.
-- Script-aware: the rubric states explicitly that Romanized Hindi is
-  not an error, so the judge doesn't re-introduce the same
-  script-vs-language confusion script_adherence already handles
-  separately (Milestone 5.2).
-- Reference-free by DEFAULT (Milestone 5.3): this project's own data
-  showed a gold reference masks comprehension drift -- the judge
-  reached the right verdict by pattern-matching the gold string while
-  its actual reasoning was already wrong (see judge_rubric.py). Both
-  modes are supported; reference-free is the default specifically
-  because trusting a reference-based judge's apparent correctness is
-  the mistake this project's own evidence warns against.
-- Align-then-judge (Milestone 5.4, reference-based mode only): diffs
-  response against gold first (vindex.judge_align); an exact word-level
-  match skips the LLM call entirely, and a partial mismatch sends only
-  the disagreeing spans, not the full text, bounding cost/latency/
-  variance to what actually disagrees.
-- Conservative default (Milestone 5.5): passes only at high judge-
-  reported confidence AND a high score. Ambiguous cases (low
-  confidence, or a middling score) are flagged, not silently passed --
-  a false alarm costs a human reviewer a few seconds; a silent pass on
-  a wrong answer in a banking flow costs a lot more.
-- Deterministic discipline (Milestone 5.6): temperature 0
-  (vindex.judge_model's GroqJudge hard-codes this), and the judge
-  model's exact identifier is recorded in every result's detail
-  payload -- this project's own data showed gpt-oss-20b reworded
-  output roughly a third of the time even at temperature 0, so a
-  judge whose backing model silently updates makes every historical
-  score incomparable.
-
-SELF-ENHANCEMENT BIAS (Milestone 5.7): never judge a model with
-itself, or a model from the same family, without treating the result
-as suspect -- a model is measurably biased toward rating its own
-output favorably. indic_judge does not (cannot, in general) detect
-this automatically; judge_model_id and the model-under-test's own
-identifier, if you have it, are both in every result's detail payload
-specifically so you can check this yourself, and raise a warning if
-you pass judge and answering models that look like the same family
-(see _warn_if_same_family below).
-
-JUDGE SELECTION GUIDANCE (Milestone 5.7): documented in
-JUDGE_SELECTION_GUIDANCE below rather than silently defaulting to one
-model nobody questions -- this project's own data plus the HindiWiC
-finding (cited in vindex.calibration's MuRIL warning) both say judge
-competence on Indic content is not uniform across models and degrades
-with model size, so a specific recommendation is more honest than an
-unexamined default.
-
-MILESTONE 5.8 (validate against human labels, vs an English-rubric
-baseline): run, using the Milestone 6.3 annotation data. Result: an
-English-rubric baseline agreed with the same human graders slightly
-MORE than this module's Hindi rubric on that 62-trace set (93.5% vs
-90.3%) -- the opposite of this module's motivating hypothesis.
-Inspection of the disagreements shows this module being more
-conservative about answer completeness, not less accurate about
-comprehension (see experiments/README.md's Milestone 5.8 section for
-the full breakdown). Do not present the Hindi rubric as validated to
-agree with humans better than an English one on this evidence; that
-specific claim did not hold on this sample.
+Limitation: on the 62-trace human-agreement benchmark
+(:func:`vindex.datasets.load_judge_benchmark`), an English-rubric
+baseline agreed with human graders slightly more often than the Hindi
+rubric (93.5% vs 90.3%). Most disagreements came from the Hindi rubric
+being stricter about answer completeness. Do not assume the Hindi rubric
+agrees with humans better than an English one.
 """
 
 from __future__ import annotations
@@ -98,40 +54,39 @@ from vindex.result import MetricResult, coerce_text
 JUDGE_SELECTION_GUIDANCE = """
 Judge model selection is not a solved default -- pick deliberately:
 
-- openai/gpt-oss-120b (via Groq): the model this project's own Phase 0
-  rubric-quality experiments were run against (experiments/FINDINGS.md).
-  Recommended default for Hindi/Hinglish content specifically because
-  it is the one combination this project has direct evidence for, not
-  because it is assumed to generalize to every Indic language.
+- openai/gpt-oss-120b (via Groq): the model vindex's rubric was
+  developed and validated against. Recommended default for
+  Hindi/Hinglish content specifically because it is the combination
+  with direct evidence behind it, not because it is assumed to
+  generalize to every Indic language.
 - Smaller models degrade on Indic content specifically, not just on
-  language tasks in general -- this project's calibration data
+  language tasks in general -- vindex's calibration data
   (vindex.calibration) and the HindiWiC finding (Dairkee & Dubossarsky,
   2024, cited in vindex.calibration.MURIL_WARNING) both show
   Indic-language competence is not a simple function of overall model
   capability. Do not assume a smaller/cheaper model "should be fine"
   for Indic judging just because it performs adequately on English
-  tasks -- verify against your own labelled data (see judge_align's
-  cost-bounding, and Milestone 5.8's human-agreement validation:
-  93.5% for an English rubric vs 90.3% for this module's Hindi
-  rubric on the same 62 traces, so rubric language alone is not a
-  substitute for checking your own data either).
+  tasks -- verify against your own labelled data (see
+  vindex.datasets.score_judge_benchmark). On the shipped 62-trace
+  benchmark, an English rubric agreed with human graders 93.5% of the
+  time vs 90.3% for the Hindi rubric, so rubric language alone is not a
+  substitute for checking your own data either.
 - NEVER use the same model (or a model from the same family/provider
   fine-tune lineage) as both the model being judged and the judge
   itself -- self-enhancement bias is a documented effect, not a
-  theoretical risk. indic_judge cannot fully detect this for you; see
-  _warn_if_same_family below for the partial, name-based check this
-  module does perform.
+  theoretical risk. indic_judge cannot fully detect this for you; it
+  performs only a partial, name-based check.
 """
 
 _MAX_SCORE = 5
 
 
 def _iter_balanced_objects(text: str) -> list[str]:
-    """Find every balanced {...} span in `text`, in order, by brace
-    counting -- correctly skipping over braces inside string literals
-    so a `{` or `}` in a quoted value doesn't miscount. One candidate
-    per top-level `{` found (nested objects are captured as part of
-    their enclosing span, not separately)."""
+    """Return every balanced ``{...}`` span in ``text``, in order.
+
+    Braces inside JSON string literals are ignored. Nested objects are
+    returned as part of their enclosing span, not separately.
+    """
     candidates = []
     i = 0
     while i < len(text):
@@ -171,23 +126,11 @@ def _iter_balanced_objects(text: str) -> list[str]:
 def _extract_json(text: str) -> str:
     """Extract the JSON object from a judge's raw text response.
 
-    FIXED (a real bug, found by an independent outside review): this
-    used to be `re.search(r"\\{.*\\}", text, re.DOTALL)` -- greedy, so
-    it grabbed from the FIRST `{` to the LAST `}` in the whole text,
-    not a real JSON object. A judge response that mentions any brace in
-    its prose before its actual JSON answer (e.g. "Reasoning: use
-    {a:1}. Final: {"score":5,...}") got the entire span from the first
-    brace to the last one, including the prose text glued in the
-    middle -- not valid JSON, so the whole response was thrown away as
-    judge_error instead of parsing the real object that was there.
-
-    Now: find every balanced {...} span (brace-counted, string-literal-
-    aware) and return the first one that is ACTUALLY valid JSON, not
-    just the first one that is balanced -- "{a:1}" in the example above
-    is balanced but not valid JSON (unquoted key), so it is skipped in
-    favor of the real object that follows. Falls back to the raw text
-    if no candidate parses, so a genuinely malformed response still
-    reaches json.loads() and raises there, same as before."""
+    Strips Markdown code fences, then returns the first balanced
+    ``{...}`` span that parses as valid JSON, so braces mentioned in
+    surrounding prose are skipped. If no candidate parses, the raw text
+    is returned so that ``json.loads`` raises on it.
+    """
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(json)?", "", text).rsplit("```", 1)[0]
@@ -201,75 +144,38 @@ def _extract_json(text: str) -> str:
 
 
 def _parse_judge_response(raw: str) -> tuple[float, str, str, str]:
-    """Parse the judge's JSON response into (score in [0,1], reasoning,
-    confidence, raw_confidence). Raises ValueError on a malformed
-    response -- callers should treat that as a failed judge call, not
-    silently default to a score.
+    """Parse a judge's JSON response.
 
-    confidence is the normalized value used for the pass/fail gate --
-    "high" or "low" only, with anything else (e.g. "medium", a typo, a
-    language other than English) folded into "low" as the safe
-    default. raw_confidence is exactly what the judge sent, unmodified
-    (added after an independent outside review found that when a judge
-    sent "medium", the normalized "low" silently overwrote it
-    everywhere, including in `detail` -- so the audit trail claimed the
-    judge said "low" when it actually said "medium", misrepresenting
-    what happened even though the conservative low-confidence
-    *behavior* was correct). Report both: use `confidence` for gating
-    logic, `raw_confidence` for anything a human or a log will read.
+    Args:
+        raw: Raw text returned by the judge model.
 
-    A score outside the rubric's documented 1-5 range is ALSO malformed
-    and raises ValueError, rather than being clamped into range. The
-    rubric prompt asks for "1 to 5" explicitly (judge_rubric.py); a
-    score of e.g. 100 (a judge misreading the scale, or an adversarial/
-    corrupted response) is not a valid 1-5 score that happens to be out
-    of bounds -- it is evidence the response did not follow the
-    contract at all. Silently clamping it to 5 would turn a malformed
-    response into indic_judge's most confident possible pass
-    (score=1.0, and passed=True if confidence is also "high"), which is
-    worse than raising and surfacing it as judge_error the way every
-    other malformed shape already is."""
+    Returns:
+        ``(score, reasoning, confidence, raw_confidence)``. ``score`` is the
+        1-5 rubric score normalized to [0, 1]. ``confidence`` is ``"high"``
+        or ``"low"`` and is used for gating; any other value (e.g.
+        ``"medium"``) is normalized to ``"low"``. ``raw_confidence`` is the
+        value the judge actually sent, for audit trails.
+
+    Raises:
+        ValueError: If the response is malformed, including a score that
+            is a boolean, not a JSON number, not finite, or outside 1-5.
+            Out-of-range scores are rejected rather than clamped. Callers
+            treat this as a failed judge call, never a default score.
+    """
     data = json.loads(_extract_json(raw))
     raw_score_field = data["score"]
     if isinstance(raw_score_field, bool):
-        # FIXED (a real bug, found by an independent outside review):
-        # bool is a subclass of int in Python, so float(True) == 1.0
-        # and float(False) == 0.0 both succeed silently. {"score":
-        # true} used to be accepted as score=1 (passing the 1-5 range
-        # check as the lowest valid score) and {"score": false} was
-        # accepted as score=0 (correctly rejected by the range check,
-        # but only by accident -- 0 happens to be out of [1,5], not
-        # because a bool was recognized as an invalid type). A judge
-        # emitting a boolean for "score" has not followed the
-        # documented contract any more than a string or a list would
-        # have -- reject explicitly, consistent with every other
-        # malformed shape degrading to judge_error.
+        # bool is a subclass of int; reject it explicitly.
         raise ValueError(f"score {raw_score_field!r} is a boolean, not a number")
     if not isinstance(raw_score_field, (int, float)):
-        # FIXED (a real bug, found by an independent outside review):
-        # float("5") == 5.0 succeeds silently, so {"score": "5"} (a
-        # JSON string, not a number) passed through as a clean score=1.0
-        # pass -- exactly the "didn't follow the numeric contract"
-        # failure the bool check above exists to catch, just via a
-        # different JSON type it missed. Reject any score that is not
-        # already a JSON number (int/float), consistent with the bool
-        # rejection immediately above and the list/dict rejection that
-        # already happens implicitly (float(["a"]) raises TypeError,
-        # caught by indic_judge's except tuple).
+        # Reject numeric strings such as "5".
         raise ValueError(f"score {raw_score_field!r} is not a JSON number")
     score_value = float(raw_score_field)
     try:
         raw_score = int(round(score_value))
     except (OverflowError, ValueError) as exc:
-        # float("inf")/float("-inf") pass json.loads (Python's decoder
-        # accepts the non-standard "Infinity"/"-Infinity" tokens by
-        # default) and pass float(), but round()/int() on an infinite
-        # float raises OverflowError, not ValueError -- so it wasn't
-        # caught by the score-range check below, or by the caller's
-        # except tuple, and crashed indic_judge() instead of degrading
-        # to judge_error like every other malformed shape. NaN was
-        # already caught (float("nan") != anything, so the range check
-        # below raised ValueError) -- this closes the same gap for +-inf.
+        # json.loads accepts Infinity/-Infinity; int(round(inf)) raises
+        # OverflowError, which is re-raised as ValueError here.
         raise ValueError(f"score {score_value!r} is not a finite number") from exc
     if not 1 <= raw_score <= _MAX_SCORE:
         raise ValueError(f"score {raw_score!r} is outside the documented 1-{_MAX_SCORE} range")
@@ -283,48 +189,16 @@ def _parse_judge_response(raw: str) -> tuple[float, str, str, str]:
 
 
 def _family(model_id: str) -> str:
-    """Coarse model-family key for the same-family self-enhancement
-    check -- e.g. "openai/gpt-oss-120b" and "openai/gpt-oss-20b" share
-    the "openai/gpt-oss" family despite being different sizes, which
-    is exactly the case _warn_if_same_family exists to catch (a judge
-    from the same lineage as the model it is judging, even at a
-    different size, is still a self-enhancement bias risk).
+    """Return a coarse model-family key for the self-enhancement check.
 
-    HOW NARROW THIS ACTUALLY IS: only a trailing "-<digits>[bm]" size
-    token is stripped. It does NOT strip a provider/host prefix, so
-    "openai/gpt-oss-120b" vs "groq/gpt-oss-120b-turbo" (same base
-    model, different host, extra suffix) are treated as different
-    families -- no warning. Any fine-tune or variant suffix after the
-    size token ("-instruct", "-turbo", "-ft", a version tag) breaks
-    detection the same way. This is not just "a fine-tune with a
-    deliberately unrelated name evades it" (this module's own docstring
-    and JUDGE_SELECTION_GUIDANCE's phrasing) -- in practice, almost any
-    real-world model-naming convention already evades it, since none of
-    them are "identical name plus a bare size suffix, nothing else."
-    Only a same-repo, same-naming-convention, different-SIZE variant is
-    reliably caught. Treat this warning as a narrow, best-effort catch
-    for one specific naming pattern, not a general same-family
-    detector.
-
-    MISSES THE MOST COMMON REAL PAIRING (found by an independent
-    outside review): "gpt-4o" vs "gpt-4o-mini" -- almost certainly the
-    single most common self-judging pair in production today -- is NOT
-    caught. Splitting "gpt-4o-mini" on "-" gives ["gpt", "4o", "mini"];
-    the trailing token "mini" is not a bare size digit, so this
-    function returns the model_id unchanged instead of stripping
-    anything, and "gpt-4o" (unchanged) != "gpt-4o-mini" (unchanged).
-    Same for "llama-3.1-70b-instruct" vs "llama-3.1-8b-instruct" (a
-    trailing "-instruct" suffix after the size token blocks the strip
-    the same way the docstring above already describes for other
-    suffixes). A reliable general fix needs an actual model-family
-    lookup table or a smarter naming-convention parser, not a
-    marginally-smarter regex -- a fragile pattern expansion that still
-    misses the next naming convention would give a false sense that
-    this check is more complete than it is, which is worse than the
-    current, honestly-narrow state. Not attempted here for that
-    reason; `detail`'s absence of a self-enhancement warning must never
-    be read as "safe from self-enhancement bias" -- verify your own
-    judge/answering-model pairing directly."""
+    Strips only a trailing ``-<digits>[b|m]`` size token, so
+    ``"openai/gpt-oss-120b"`` and ``"openai/gpt-oss-20b"`` share the family
+    ``"openai/gpt-oss"``. This is deliberately narrow: provider prefixes
+    and any suffix after the size token (``-instruct``, ``-turbo``,
+    ``-mini``) defeat it, so pairs such as ``gpt-4o`` / ``gpt-4o-mini`` or
+    ``llama-3.1-70b-instruct`` / ``llama-3.1-8b-instruct`` are not
+    detected. The absence of a warning never means a pairing is safe.
+    """
     parts = model_id.split("-")
     if len(parts) > 1 and parts[-1].rstrip("bm").isdigit():
         return "-".join(parts[:-1])
@@ -338,7 +212,7 @@ def _warn_if_same_family(judge_model_id: str, answering_model_id: str | None) ->
         return (
             f"judge model {judge_model_id!r} appears to be from the same "
             f"family as the model being judged {answering_model_id!r} -- "
-            "self-enhancement bias risk (Milestone 5.7). Treat this "
+            "self-enhancement bias risk. Treat this "
             "result as suspect; use a judge from a different model "
             "family/provider."
         )
@@ -352,32 +226,41 @@ def indic_judge(
     judge: JudgeModel | None = None,
     answering_model_id: str | None = None,
 ) -> MetricResult:
-    """Is `answer` a correct, factually accurate response to `question`?
+    """Judge whether an answer correctly and accurately answers a question.
 
-    Reference-free by default (gold=None) -- see this module's
-    docstring for why that is the recommended mode, not just the
-    convenient one. Pass `gold` to use reference-based mode instead,
-    which runs align-then-judge (Milestone 5.4): an exact match with
-    `gold` skips the LLM call entirely.
+    Reference-free by default. Pass ``gold`` to use reference-based mode,
+    which aligns the answer against gold first: an exact word-level match
+    returns ``"matched"`` without calling the LLM (and without requiring
+    an API key).
 
-    judge defaults to vindex.judge_model.GroqJudge() (needs
-    GROQ_API_KEY in the environment). Pass answering_model_id (the
-    identifier of the model that produced `answer`, if you have it) to
-    get a same-family self-enhancement-bias warning in the result's
-    detail payload when it matches the judge model's family.
+    The gate is conservative: ``passed`` is True only when the judge
+    reports ``"high"`` confidence and a normalized score >= 0.8. Raw 1-5
+    scores normalize as ``(raw - 1) / 4``, so only a raw 5 passes; a raw 4
+    (0.75) is ``"flagged"`` even at high confidence.
 
-    CONSERVATIVE DEFAULT (Milestone 5.5): passed=True only when the
-    judge reports "high" confidence AND a normalized score >= 0.8.
-    CORRECTED (this docstring previously said "a raw 4 or 5 out of
-    5" -- wrong, found by an independent outside review): normalization
-    is `(raw_score - 1) / (_MAX_SCORE - 1)`, so a raw 4 normalizes to
-    (4-1)/4 = 0.75, which does NOT clear the 0.8 gate. Only a raw 5
-    passes; a raw 4 at high confidence is passed=False, label=
-    "flagged" -- exactly like a raw 4 at low confidence. Anything below
-    a raw 5 -- including a high score at low confidence -- is
-    passed=False with label "flagged", not silently treated as a pass.
-    Better a false alarm than a silent pass on a wrong answer in a
-    banking flow.
+    Args:
+        question: The question asked. ``None`` is treated as empty.
+        answer: The answer to judge. ``None`` is treated as empty.
+        gold: Optional reference answer. Non-string values (e.g. a pandas
+            NaN) are treated as ``None``.
+        judge: Judge model implementing
+            :class:`vindex.judge_model.JudgeModel`. Defaults to
+            :class:`vindex.judge_model.GroqJudge`, which requires
+            ``GROQ_API_KEY``.
+        answering_model_id: Identifier of the model that produced
+            ``answer``. Enables a same-family self-enhancement-bias
+            warning in ``detail``.
+
+    Returns:
+        A :class:`vindex.result.MetricResult` with label ``"matched"``,
+        ``"flagged"``, ``"empty"``, or ``"judge_error"`` (unparseable judge
+        response). ``detail`` includes ``mode``, ``judge_model_id``, and,
+        when the judge was called, ``confidence``, ``judge_reasoning``, and
+        ``raw_confidence`` if it differed from the normalized value.
+
+    Raises:
+        ValueError: If the default judge is needed and ``GROQ_API_KEY``
+            is not set.
     """
     question = coerce_text(question)
     answer = coerce_text(answer)
@@ -392,28 +275,12 @@ def indic_judge(
         )
 
     if gold is not None and not isinstance(gold, str):
-        # A non-string, non-None gold (e.g. a pandas nan in a dataframe
-        # cell) would crash on gold.strip() below -- treat it the same
-        # as gold=None (reference-free mode) rather than crash, same
-        # fix as coerce_text applies to question/answer above.
+        # e.g. a pandas NaN from a dataframe cell: treat as reference-free.
         gold = None
 
-    # FIXED (a real bug, found by an independent outside review): judge
-    # construction (GroqJudge() validates GROQ_API_KEY and raises
-    # ValueError if it's missing) used to happen HERE, before the
-    # exact-match alignment check below -- so a caller in pure
-    # reference-based mode whose answer exactly matches gold, which
-    # this docstring promises "skips the LLM call entirely," still got
-    # a hard ValueError for a missing API key it was never going to
-    # need. Deferred: only construct/validate a real judge once we know
-    # we're actually about to call one. The exact-match branch below
-    # reports the model_id the CALLER passed (or the shipped default
-    # constant, if none was passed) without ever constructing it --
-    # correct, since the caller-supplied judge's model_id is knowable
-    # without touching its (possibly key-validating) constructor for
-    # any real JudgeModel implementation that follows this project's
-    # own JudgeModel protocol (model_id is a plain attribute, not
-    # something that requires a live connection).
+    # Construct the default judge (which validates GROQ_API_KEY) only
+    # once an LLM call is actually needed, so an exact gold match works
+    # without a key. A JudgeModel's model_id is a plain attribute.
     caller_supplied_judge = judge
     default_model_id = (
         caller_supplied_judge.model_id
@@ -437,7 +304,7 @@ def indic_judge(
                 score=1.0,
                 passed=True,
                 label="matched",
-                reason="answer aligns exactly with gold; no judge call needed (Milestone 5.4).",
+                reason="answer aligns exactly with gold; no judge call needed.",
                 detail=detail,
             )
         prompt = build_reference_based_prompt(
@@ -476,19 +343,11 @@ def indic_judge(
         "judge_reasoning": reasoning,
     }
     if raw_confidence.lower() != confidence:
-        # The judge sent something other than exactly "high"/"low"
-        # (e.g. "medium") -- report what it actually said alongside the
-        # normalized value used for gating, instead of silently
-        # overwriting it (see _parse_judge_response's docstring).
+        # Report what the judge actually sent (e.g. "medium") alongside
+        # the normalized value used for gating.
         detail["raw_confidence"] = raw_confidence
     if family_warning:
         detail["self_enhancement_bias_warning"] = family_warning
 
     return MetricResult(score=score, passed=passed, label=label, reason=reason, detail=detail)
 
-
-# MILESTONE 5.8 (done): validate against human labels, vs an
-# English-rubric baseline. See this module's docstring and
-# experiments/README.md for the result -- the English-rubric baseline
-# agreed with humans slightly more than this module's Hindi rubric on
-# the 6.3 study's 62 traces (93.5% vs 90.3%).

@@ -30,5 +30,10 @@ jobs:
       - name: Test (pytest)
         run: pytest
 
+      - name: CLI smoke test
+        run: |
+          vindex --version
+          vindex run examples/cases.jsonl --fail-under 0.5 || test $? -eq 1
+
       - name: Build
         run: python -m build

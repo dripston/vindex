@@ -1,10 +1,7 @@
 """
-Tests for vindex.encoder's pure logic: cache path/key computation
-(Milestone 3.4) and the MuRIL load guard (Milestone 3.2). Does not load
-any real model -- see experiments/scripts/beat_the_baseline.py-style
-scripts, or a manual run of calibrated_similarity(), for tests that
-exercise real encoding (out of scope for the default fast test suite;
-nobody in this project has a GPU and model loading is slow).
+Tests for vindex.encoder's pure logic: cache path/key computation and
+the MuRIL load guard. Does not load any real model; real encoding is
+covered by test_similarity.py.
 """
 
 import os
@@ -48,12 +45,9 @@ def test_cache_path_under_cache_root() -> None:
 
 
 def test_cache_path_differs_by_revision() -> None:
-    # Regression (found by an independent outside review): the cache
-    # key used to be derived from encoder_name alone, so a model
-    # updated in place under the same repo name would silently reuse
-    # a stale cached embedding from the old weights. Different
-    # revisions of the same encoder name must land in different cache
-    # paths.
+    # A model updated in place under the same repo name must not reuse
+    # stale cached embeddings: different revisions of the same encoder
+    # name must land in different cache paths.
     p1, d1 = _cache_path("some-encoder", "abc123", "hello world", True)
     p2, d2 = _cache_path("some-encoder", "def456", "hello world", True)
     assert p1 != p2

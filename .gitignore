@@ -23,3 +23,10 @@ data/external/
 *Recovery-Codes*
 *.pypirc
 .pypirc
+
+# Local-only: research archive, paper, launch video, editor/agent tooling
+_archive/
+.agents/
+.claude/
+skills-lock.json
+site/_preview/

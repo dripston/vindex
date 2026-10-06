@@ -1,39 +1,19 @@
-"""
-v0 English-loanword lookup for Hindi transliteration (Milestone 2.5).
+"""English-loanword lookup for Hindi transliteration.
 
-Common English loanwords used inside Hindi/Hinglish sentences ("vah
-doctor hai") have one established, conventional Devanagari spelling
-("डॉक्टर") that is NOT what letter-by-letter ITRANS phonetic
-transliteration produces. transliterate.py's ITRANS backend renders
-"doctor" as "दोच्तोर्" -- phonetically plausible, but not the spelling
-any Hindi speaker or dictionary actually uses. This is a real gap
-transliterate.py's own docstring does not cover, because ITRANS is a
-Sanskrit/formal-Hindi romanization scheme, not a loanword dictionary.
+Common English loanwords in Hinglish ("vah doctor hai") have an
+established Devanagari spelling (डॉक्टर) that letter-by-letter ITRANS
+transliteration does not produce (it gives दोच्तोर्).
+:func:`vindex.transliterate.transliterate` consults this table before
+falling back to ITRANS, which handles these cases deterministically and
+without an LLM call.
 
-This module is a small, hand-picked word-level lookup table, consulted
-BEFORE falling back to ITRANS. Same v0 shape and same honesty as
-language.py's fixed function-word list: a short dictionary, not a
-model, checked before assuming ITRANS output is usable.
+Limitations:
 
-WHY THIS MATTERS (see BUILD_PLAN.md / experiments docs): Sarvam's
-published work solves this same loanword problem ("वह doctor" versus
-"वह डॉक्टर") with an LLM call per case. A lookup-table transliteration
-step solves the SAME cases deterministically, for free, and
-reproducibly -- no API call, no latency, no temperature/model-version
-sensitivity. This is a genuine advantage over an LLM-based normalizer
-for exactly this narrow class of input (a fixed loanword vocabulary),
-not a general replacement for one.
-
-v0 LIMITATIONS:
-  - Fixed, hand-picked word list (10 entries). No coverage beyond what
-    is listed below.
-  - Whole-word, case-insensitive match only. No inflection handling
-    ("doctors", "hospitalized" are not recognized).
-  - Devanagari only. No lookup table for the other 8 Indic scripts.
-  - A loanword not in this list silently falls through to ITRANS
-    phonetic transliteration, which -- per transliterate.py -- is
-    frequently wrong for English loanwords specifically. This module
-    narrows that gap, it does not close it.
+- Fixed list of 10 words; anything else falls through to ITRANS, which
+  is often wrong for English loanwords.
+- Whole-word, case-insensitive matching only; no inflections
+  ("doctors" is not recognized).
+- Devanagari only.
 """
 
 from __future__ import annotations
@@ -57,15 +37,29 @@ _WORD_RE = re.compile(r"[A-Za-z]+")
 
 
 def lookup_loanword(word: str) -> str | None:
-    """Return the conventional Devanagari spelling for `word` if it is
-    a known loanword (case-insensitive, whole word only), else None."""
+    """Return the conventional Devanagari spelling of a known loanword.
+
+    Args:
+        word: A single word, matched case-insensitively.
+
+    Returns:
+        The Devanagari spelling, or ``None`` if ``word`` is not in
+        :data:`LOANWORDS_DEVANAGARI`.
+    """
     return LOANWORDS_DEVANAGARI.get(word.lower())
 
 
 def substitute_known_loanwords(text: str) -> str:
-    """Replace any whole-word match of a known loanword in `text` with
-    its conventional Devanagari spelling, leaving everything else
-    (including unknown words, left for ITRANS) unchanged."""
+    """Replace every known loanword in ``text`` with its Devanagari spelling.
+
+    Unknown words are left unchanged.
+
+    Args:
+        text: Latin-script text.
+
+    Returns:
+        ``text`` with known loanwords substituted.
+    """
 
     def _replace(match: re.Match[str]) -> str:
         word = match.group(0)

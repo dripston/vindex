@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.6.0
+
+**vindex is now a product, not a research repo.**
+
+### Added
+- **`vindex` CLI.** `vindex run FILE` evaluates a JSONL, JSON or CSV dataset with any mix of
+  `script`, `similarity`, `judge` and `trace` checks. It prints a pass-rate summary and every
+  failing case with its reason, exits 1 below `--fail-under`, writes JSON or markdown reports,
+  and appends a summary to the GitHub Actions job summary. Column names from DeepEval,
+  promptfoo and Ragas exports are recognized as-is. `vindex check` scores one pair;
+  `vindex detect` shows which scripts a text uses.
+- **More judge providers:** `OpenAIJudge`, `AnthropicJudge`, and `LiteLLMJudge` (Gemini,
+  Azure, Bedrock, Ollama and ~100 others) alongside `GroqJudge`. Each SDK is imported only
+  when used.
+- **Website and docs** at https://dripston.github.io/vindex/, with an in-browser playground
+  for `script_adherence`.
+- `py.typed` marker, so type checkers pick up vindex's annotations.
+
+### Changed
+- Docstrings rewritten as user-facing API documentation.
+- Integration adapters moved from `docs/integrations/` to `examples/integrations/`.
+- Research material (experiments, study data, build plan, paper) removed from the main branch.
+  It remains available at the `research-archive` tag.
+
+No changes to the behaviour of `script_adherence`, `calibrated_similarity`, `indic_judge` or
+`check_trace`.
+
 ## v0.5.0
 
 **New feature: `vindex.datasets`, so you can verify `calibrated_similarity`

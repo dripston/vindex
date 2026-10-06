@@ -1,60 +1,22 @@
-"""
-calibrated_similarity: is a response semantically close to a gold
-answer, using a per-encoder, per-language calibrated threshold instead
-of an uncalibrated 0.5 (Milestone 3).
+"""calibrated_similarity: semantic closeness with a calibrated threshold.
 
-THE ARGUMENT FOR THIS METRIC (Milestone 3.5)
+Encodes a response and a gold answer with a multilingual sentence
+encoder and compares their cosine similarity against a threshold
+calibrated for that encoder and language (see :mod:`vindex.calibration`),
+instead of an uncalibrated 0.5. At 0.5, most shipped (encoder, language)
+configurations discriminate correct from wrong answers at or near
+chance; calibrated, the better encoders reach 0.63-0.90 accuracy.
 
-At the naive default of 0.5 cosine similarity, 11 of the 15 (encoder,
-language) configurations in this package's own calibration experiment
-score at or near chance (<=0.5 accuracy) for correct-vs-wrong
-discrimination -- a 0.5 threshold is not a safe default, it is close
-to a coin flip. Calibrated per (encoder, language), the better
-encoders reach 0.63 to 0.90 accuracy on the same cases; the single
-best cell (multilingual-e5-base, English) reaches 0.90. See
-vindex.calibration's module docstring and
-experiments/results_clean/discrimination_summary.csv for the full
-table this is drawn from, and the note on why this package's own
-count differs slightly from an earlier "13 of 15" estimate written
-before this exact number was computed -- see calibration.py.
+This is a semantic-closeness check, not a correctness judge: two answers
+can be topically similar yet disagree on the fact. Use
+:func:`vindex.indic_judge` for correctness. A gold reference is required.
 
-WHAT THIS METRIC DOES AND DOES NOT DO
+Requires the ``similarity`` extra (``pip install vindex[similarity]``);
+without it, calling the metric raises ``ImportError``.
 
-calibrated_similarity(gold, response, language) encodes both texts
-with a multilingual sentence encoder, computes cosine similarity, and
-compares it against a calibrated threshold for (encoder, language) --
-falling back to 0.5 with a stated caveat if no calibration exists for
-that combination. It is a semantic-closeness check, not a factual-
-correctness judge: two answers can be topically similar and still
-disagree on the actual fact (see BUILD_PLAN.md's indic_judge
-milestone for that problem). It requires a gold reference, unlike
-script_adherence (Milestone 1) which does not.
-
-DEPENDENCIES: sentence-transformers, transformers, and torch are NOT
-core vindex dependencies (see vindex.encoder's module docstring) --
-install via `pip install vindex[similarity]`. Calling this function
-without them installed raises ImportError from the underlying import,
-not a custom vindex error, since there is nothing vindex-specific to
-add to that message.
-
-DEGENERATE-CELL WARNINGS (fixed after an independent outside review
-found this metric silently returned a clean "similar"/"dissimilar"
-label even for shipped (encoder, language) cells with no real
-discrimination, e.g. LaBSE/en): calibration.CALIBRATION_TABLE's
-entries now carry real, calibrate()-computed `.warnings` (see
-calibration.py's module comment above CALIBRATION_TABLE for exactly
-what triggers one and what doesn't). When the cell used has any, this
-function copies them into `detail["calibration_warnings"]` and appends
-them to `reason` -- so a caller reading only `reason`, or only
-`detail`, both see it, not just someone who separately reads the
-README's AUC table. Note this does NOT catch every weak cell: it
-reuses calibrate()'s own guard (same-sample fitted accuracy at or
-below chance), which is a weaker signal than the threshold-independent
-ROC AUC in README.md's "argument for calibrated_similarity" table --
-a cell can fit above chance in-sample and still have near-chance real
-AUC (e.g. multilingual-e5-base/hi), and that case is NOT warned about
-here. Check the README's AUC table for the full picture; this warning
-only catches the most degenerate cells.
+Loaded encoders are cached for the lifetime of the process. To bound
+memory when using several encoders in one process, call
+``vindex.similarity._encoder_instances.clear()`` between them.
 """
 
 from __future__ import annotations
@@ -67,15 +29,7 @@ from vindex.result import MetricResult, coerce_text
 
 _KNOWN_LANGUAGES = frozenset({"en", "hi", "hinglish"})
 
-# Process-lifetime cache, never evicted (found by an independent
-# outside review). Deliberate for the common case -- reloading a
-# multi-GB sentence-transformers model on every call would be far
-# worse -- but means calling calibrated_similarity() across all 5
-# calibrated encoders in one process keeps all 5 loaded simultaneously
-# for the rest of that process's life. If you need to bound memory
-# (e.g. benchmarking many encoders in one script), call
-# `vindex.similarity._encoder_instances.clear()` between encoders, or
-# run each encoder in its own subprocess.
+# Process-lifetime encoder cache, never evicted (see module docstring).
 _encoder_instances: dict[tuple[str, bool], Encoder] = {}
 
 
@@ -94,42 +48,52 @@ def calibrated_similarity(
     allow_muril: bool = False,
     min_auc: float = 0.7,
 ) -> MetricResult:
-    """Is `response` semantically close enough to `gold`, per a
-    calibrated threshold for (encoder_name, language)?
+    """Check whether a response is semantically close to a gold answer.
 
-    language must be one of "en", "hi", "hinglish" -- the three
-    variants the shipped calibration table covers. encoder_name
-    defaults to calibration.DEFAULT_ENCODER (Milestone 3.2's sensible
-    default). Passing google/muril-base-cased raises
-    MurilWithoutOverrideError unless allow_muril=True -- see
-    vindex.calibration.MURIL_WARNING.
+    The response passes if its cosine similarity to ``gold`` (clamped to
+    [0, 1]) is at or above the shipped threshold for
+    ``(encoder_name, language)``. If no calibration exists for that pair,
+    a 0.5 threshold is used and the result is labelled
+    ``"similar_uncalibrated"`` / ``"dissimilar_uncalibrated"``.
 
-    If no shipped calibration exists for (encoder_name, language), the
-    metric falls back to a 0.5 threshold and says so plainly in
-    `reason` and `detail` -- it does not silently pretend to be
-    calibrated when it isn't.
+    Cells whose threshold-independent ROC AUC is below ``min_auc`` are
+    labelled ``"low_discrimination"`` with ``passed=False`` regardless of
+    the similarity score, because their fitted threshold can look
+    reasonable in-sample while the encoder cannot actually discriminate
+    (e.g. multilingual-e5-base/hi: 0.632 fitted accuracy, AUC 0.500). Of
+    the 15 shipped cells, only mpnet-v2/en, e5-base/en, and
+    MiniLM-L6/hinglish clear the default of 0.7. Any calibration warnings
+    for the cell are copied into ``detail["calibration_warnings"]`` and
+    appended to ``reason``.
 
-    min_auc (default 0.7 -- SAFE DEFAULT, added after repeated
-    independent outside review kept finding the same gap): if the
-    shipped cell's real, threshold-independent ROC AUC
-    (`CalibratedThreshold.roc_auc`) is below this, the result's label
-    is `"low_discrimination"` with `passed=False`, REGARDLESS of
-    whether the raw cosine similarity happens to clear the calibrated
-    threshold. Multiple reviews independently found the same failure
-    mode: `calibrated_similarity` returning a clean `label="similar",
-    passed=True` for cells like multilingual-e5-base/hi, whose real AUC
-    is exactly 0.500 (chance) -- an in-sample argmax-fitted threshold
-    can look fine (0.632 accuracy here) while the encoder has no real
-    ability to discriminate correct from wrong on that (encoder,
-    language) pair. Of the 15 shipped cells, only 3 clear AUC 0.75
-    (mpnet-v2/en, e5-base/en, MiniLM-L6/hinglish); the default of 0.7
-    is deliberately just below that bar so those 3 pass and everything
-    else is flagged. Set min_auc=0.0 to disable this check and restore
-    the previous (pre-this-parameter) behavior of trusting the
-    calibrated threshold alone -- only do this if you have verified the
-    specific (encoder, language) cell you're using on your own held-out
-    data. See README.md's "argument for calibrated_similarity" section
-    for the full AUC table this threshold is drawn from.
+    Args:
+        gold: Reference answer. ``None`` is treated as empty.
+        response: Response to score. ``None`` is treated as empty.
+        language: One of ``"en"``, ``"hi"``, ``"hinglish"``.
+        encoder_name: Hugging Face model id. Defaults to
+            ``calibration.DEFAULT_ENCODER``.
+        allow_muril: Permit ``google/muril-base-cased`` (see
+            ``calibration.MURIL_WARNING``).
+        min_auc: Minimum shipped ROC AUC required for a similar/dissimilar
+            verdict. Set to 0.0 to disable, only after validating the cell
+            on your own held-out data.
+
+    Returns:
+        A :class:`vindex.result.MetricResult` labelled ``"similar"``,
+        ``"dissimilar"``, ``"similar_uncalibrated"``,
+        ``"dissimilar_uncalibrated"``, ``"low_discrimination"``, or
+        ``"empty"``. ``detail`` includes the encoder, threshold,
+        ``calibrated`` flag, ``unclamped_cosine_similarity``, and
+        ``raw_cosine_similarity`` (the clamped value used for scoring;
+        the name is kept for compatibility).
+
+    Raises:
+        ValueError: If ``language`` is not supported, or if the cosine
+            similarity is NaN (a corrupted embedding or cache entry; clear
+            ``vindex.encoder.CACHE_ROOT`` and retry).
+        MurilWithoutOverrideError: If MuRIL is requested without
+            ``allow_muril=True``.
+        ImportError: If the ``similarity`` extra is not installed.
     """
     gold = coerce_text(gold)
     response = coerce_text(response)
@@ -155,21 +119,7 @@ def calibrated_similarity(
     response_vec = encoder.encode(response, is_query=True)
     score = cosine_similarity(gold_vec, response_vec)
     if math.isnan(score):
-        # FIXED (a real bug, found by an independent outside review):
-        # `max(0.0, min(1.0, float("nan")))` returns 1.0 in Python, not
-        # nan -- min()/max() compare left-to-right and every comparison
-        # against NaN is False, so the clamp below silently turned a
-        # NaN cosine similarity into the highest possible score
-        # (score=1.0, passed=True, label="similar" -- the single most
-        # confident result this metric can produce, from a
-        # numerically-undefined comparison). Reachable from a NaN in
-        # the embedding itself (e.g. fp16 overflow) or from
-        # encoder.py's on-disk cache, which loads a cached .npy file
-        # with no validation of its contents. Raising here rather than
-        # silently returning some other score, since a NaN similarity
-        # means something upstream is actually broken (a bad cached
-        # embedding, a broken encoder) and that should not be masked as
-        # a normal metric result.
+        # The clamp below would turn NaN into 1.0, so fail loudly instead.
         raise ValueError(
             f"cosine similarity between gold and response was NaN for encoder "
             f"{encoder_name!r} -- this indicates a corrupted embedding (e.g. a "
@@ -195,12 +145,8 @@ def calibrated_similarity(
         "language": language,
         "threshold": threshold,
         "calibrated": calibrated,
-        # cosine_similarity, unclamped -- can be < 0.0 or (due to
-        # floating point) fractionally > 1.0. "raw_cosine_similarity"
-        # below is the same value AFTER the [0, 1] clamp used for
-        # scoring; kept under its old name for backwards compatibility
-        # even though "raw" was never accurate for it (found by an
-        # independent outside review).
+        # "raw_cosine_similarity" holds the clamped score; the name is
+        # kept for backwards compatibility.
         "unclamped_cosine_similarity": raw_cosine_similarity,
         "raw_cosine_similarity": score,
     }
@@ -213,10 +159,7 @@ def calibrated_similarity(
     if calibrated:
         assert calibration is not None  # calibrated is only True when calibration was found
         if calibration.roc_auc is not None and calibration.roc_auc < min_auc:
-            # SAFE DEFAULT (see calibrated_similarity's min_auc
-            # docstring): this cell's real AUC is below the bar, so
-            # don't return a confident similar/dissimilar verdict no
-            # matter what the raw cosine similarity says.
+            # AUC below the bar: no confident verdict either way.
             detail["roc_auc"] = calibration.roc_auc
             return MetricResult(
                 score=score,
@@ -228,8 +171,7 @@ def calibrated_similarity(
                     "(encoder, language) pair has little to no real ability to "
                     "discriminate correct from wrong answers, regardless of "
                     f"where cosine similarity {score:.3f} falls relative to the "
-                    f"calibrated threshold {threshold:.3f}. See README.md's "
-                    "\"argument for calibrated_similarity\" AUC table, or pass "
+                    f"calibrated threshold {threshold:.3f}. Pass "
                     "min_auc=0.0 to disable this check."
                 ),
                 detail=detail,
@@ -240,15 +182,7 @@ def calibrated_similarity(
             f"{threshold:.3f} for ({encoder_name}, {language})."
         )
         if calibration.warnings:
-            # Found by an independent outside review: CalibratedThreshold
-            # gained a .warnings field for calibrate()'s own callers, but
-            # the shipped CALIBRATION_TABLE cells never surfaced any --
-            # so a caller using the shipped table for a degenerate cell
-            # (e.g. LaBSE/en, fitted accuracy at chance) got a clean-
-            # looking "similar"/"dissimilar" result with no indication
-            # the underlying calibration itself is suspect. Now:
-            # whatever calibrate() would have warned about this cell's
-            # own data is surfaced here too, in both detail and reason.
+            # Surface degenerate-calibration warnings in reason too.
             reason += " WARNING: " + " ".join(calibration.warnings)
         label = "similar" if passed else "dissimilar"
     else:

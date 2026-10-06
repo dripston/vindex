@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vindex docs</title>
+<meta name="description" content="Install vindex, run the CLI, and use script_adherence, check_trace, calibrated_similarity and indic_judge.">
+<meta name="theme-color" content="#fbf7f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#120e0b" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,500..700,50;1,9..144,500,50&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Tiro+Devanagari+Hindi&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg" alt="">vindex <small>v0.6</small></a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="./#playground">Playground</a>
+      <a href="./#checks">Checks</a>
+      <a href="./#workflow">CLI &amp; CI</a>
+      <a href="docs.html" aria-current="page">Docs</a>
+    </nav>
+    <div class="nav-right">
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle dark mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <a class="icon-btn" href="https://github.com/dripston/vindex" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs">
+  <aside class="sidebar" aria-label="Docs navigation">
+    <h5>Start</h5>
+    <a href="#quickstart">Quickstart</a>
+    <a href="#install">Install</a>
+    <a href="#results">Results</a>
+    <h5>CLI</h5>
+    <a href="#cli">vindex run</a>
+    <a href="#datasets">Dataset format</a>
+    <a href="#ci">GitHub Actions</a>
+    <h5>Checks</h5>
+    <a href="#script-adherence">script_adherence</a>
+    <a href="#check-trace">check_trace</a>
+    <a href="#similarity">calibrated_similarity</a>
+    <a href="#judge">indic_judge</a>
+    <h5>Guides</h5>
+    <a href="#judges">Choosing a judge</a>
+    <a href="#calibrate">Calibrate on your data</a>
+    <a href="#integrations">Integrations</a>
+    <a href="#limits">Limitations</a>
+  </aside>
+
+  <article class="prose">
+    <h1 id="quickstart">Quickstart</h1>
+    <p class="lead">vindex scores LLM output in Hindi, Hinglish and eight other Indian scripts. The first two checks are free: no model, no key, no network.</p>
+<pre data-copyable><span class="p">$</span> pip install vindex
+<span class="p">$</span> vindex check <span class="s">"Mumbai kahan hai?"</span> <span class="s">"मुंबई महाराष्ट्र में है।"</span>
+
+  <span class="k">✗ FAIL</span>  <span class="f">script_mismatch</span>  <span class="c">score 0.00</span>
+  prompt is code-mixed; response in devanagari, not Roman script.</pre>
+    <p>The same check from Python:</p>
+<pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> script_adherence
+
+result = script_adherence(<span class="s">"Mumbai kahan hai?"</span>, <span class="s">"Mumbai Maharashtra mein hai."</span>)
+result.passed   <span class="c"># True</span>
+result.label    <span class="c"># "matched"</span>
+result.reason   <span class="c"># "prompt is code-mixed; response is Roman script, as expected."</span></pre>
+
+    <h2 id="install">Install</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Gives you</th></tr></thead>
+      <tbody>
+        <tr><td><code>pip install vindex</code></td><td><code>script_adherence</code>, <code>check_trace</code>, the CLI. One dependency.</td></tr>
+        <tr><td><code>pip install "vindex[similarity]"</code></td><td><code>calibrated_similarity</code> (sentence-transformers, torch).</td></tr>
+        <tr><td><code>pip install "vindex[judge]"</code></td><td><code>indic_judge</code> with the default Groq judge.</td></tr>
+        <tr><td><code>pip install openai</code> / <code>anthropic</code> / <code>litellm</code></td><td>Other judge providers. Install only the SDK you use.</td></tr>
+      </tbody>
+    </table>
+    <p>Python 3.10 or newer.</p>
+
+    <h2 id="results">Results</h2>
+    <p>Every check returns a frozen <code>MetricResult</code>:</p>
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>score</code></td><td>float</td><td>0 to 1, higher is better.</td></tr>
+        <tr><td><code>passed</code></td><td>bool</td><td>The check's verdict at its default threshold.</td></tr>
+        <tr><td><code>label</code></td><td>str</td><td>Stable outcome name. Branch on this.</td></tr>
+        <tr><td><code>reason</code></td><td>str</td><td>One readable sentence explaining the verdict.</td></tr>
+        <tr><td><code>detail</code></td><td>dict</td><td>Raw evidence: counts, thresholds, judge reasoning, model id.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="cli">The CLI</h2>
+    <p><code>vindex run</code> evaluates a dataset file and prints a pass-rate summary plus every failing case with its reason. It exits with status 1 if any metric's pass rate is below <code>--fail-under</code> (default <code>1.0</code>).</p>
+<pre data-copyable><span class="p">$</span> vindex run cases.jsonl
+<span class="p">$</span> vindex run cases.jsonl -m script,judge --judge openai:gpt-4o
+<span class="p">$</span> vindex run cases.csv -m similarity -l hi --fail-under 0.9
+<span class="p">$</span> vindex run cases.json -f json -o report.json</pre>
+    <table>
+      <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>-m, --metrics</code></td><td><code>script</code></td><td>Comma-separated: <code>script</code>, <code>similarity</code>, <code>judge</code>, <code>trace</code>.</td></tr>
+        <tr><td><code>-l, --language</code></td><td>—</td><td>Default language for similarity: <code>en</code>, <code>hi</code>, <code>hinglish</code>. A row's own <code>language</code> wins.</td></tr>
+        <tr><td><code>--judge</code></td><td><code>groq</code></td><td><code>groq</code>, <code>openai[:model]</code>, <code>anthropic[:model]</code>, <code>litellm:&lt;model&gt;</code>.</td></tr>
+        <tr><td><code>--encoder</code></td><td>mpnet-v2</td><td>sentence-transformers model for similarity.</td></tr>
+        <tr><td><code>--strict-language</code></td><td>off</td><td>Also fail Romanized-Hindi prompts answered in English.</td></tr>
+        <tr><td><code>--fail-under</code></td><td><code>1.0</code></td><td>Minimum pass rate per metric before exiting 1.</td></tr>
+        <tr><td><code>-f, --format</code></td><td><code>table</code></td><td><code>table</code>, <code>json</code> or <code>markdown</code>.</td></tr>
+        <tr><td><code>-o, --output</code></td><td>—</td><td>Also write the full JSON report to a file.</td></tr>
+        <tr><td><code>--no-trace-auto</code></td><td>—</td><td>Don't run <code>check_trace</code> automatically on rows that have a trace.</td></tr>
+      </tbody>
+    </table>
+    <p>Two more commands for quick checks: <code>vindex check PROMPT RESPONSE</code> scores one pair, and <code>vindex detect TEXT</code> shows which scripts a string is written in. Both take <code>--json</code>.</p>
+
+    <h3 id="datasets">Dataset format</h3>
+    <p>JSONL (one object per line), a JSON list, or CSV with a header row. Column names are matched case-insensitively, and the usual names from other eval tools work without renaming:</p>
+    <table>
+      <thead><tr><th>Field</th><th>Accepted names</th><th>Used by</th></tr></thead>
+      <tbody>
+        <tr><td>prompt</td><td><code>prompt</code> <code>question</code> <code>input</code> <code>user_input</code> <code>query</code></td><td>all</td></tr>
+        <tr><td>response</td><td><code>response</code> <code>answer</code> <code>output</code> <code>actual_output</code> <code>completion</code></td><td>all</td></tr>
+        <tr><td>gold</td><td><code>gold</code> <code>expected</code> <code>expected_output</code> <code>reference</code> <code>ground_truth</code></td><td>similarity, judge</td></tr>
+        <tr><td>trace</td><td><code>trace</code> <code>reasoning</code> <code>judge_reasoning</code></td><td>trace</td></tr>
+        <tr><td>language</td><td><code>language</code> <code>lang</code></td><td>similarity</td></tr>
+        <tr><td>id</td><td><code>id</code> <code>case_id</code> <code>name</code></td><td>reports</td></tr>
+      </tbody>
+    </table>
+<pre data-copyable>{<span class="s">"id"</span>: <span class="s">"refund-017"</span>, <span class="s">"prompt"</span>: <span class="s">"Mera refund kab tak aayega?"</span>, <span class="s">"response"</span>: <span class="s">"आपका रिफंड 5-7 दिनों में आएगा।"</span>}
+{<span class="s">"id"</span>: <span class="s">"boil-01"</span>, <span class="s">"prompt"</span>: <span class="s">"समुद्र तल पर पानी किस तापमान पर उबलता है?"</span>, <span class="s">"response"</span>: <span class="s">"100°C"</span>, <span class="s">"trace"</span>: <span class="s">"...sea floor..."</span>}</pre>
+    <p>Rows without a gold reference are skipped by similarity; rows without a trace are skipped by <code>check_trace</code>. Skips are counted in the report, never treated as passes.</p>
+
+    <h3 id="ci">GitHub Actions</h3>
+    <p>When <code>$GITHUB_STEP_SUMMARY</code> is set, <code>vindex run</code> appends a markdown report to the job summary.</p>
+<pre data-copyable><span class="k">- run</span>: pip install vindex
+<span class="k">- run</span>: vindex run evals/cases.jsonl --fail-under 0.95</pre>
+
+    <h2 id="script-adherence">script_adherence</h2>
+    <div class="sig">script_adherence(prompt, response, strict_language_check=False) -&gt; MetricResult</div>
+    <p>Checks that the response is written in the script the prompt used. No reference answer and no model needed. Native-script prompts (Hindi in Devanagari, Tamil in Tamil script, …) expect the same script back; Roman-script and code-mixed prompts expect Roman script back.</p>
+    <table>
+      <thead><tr><th>Label</th><th>Passed</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td><code>matched</code></td><td>yes</td><td>Response is in the expected script.</td></tr>
+        <tr><td><code>mixed</code></td><td>yes</td><td>Response is code-mixed in a compatible way.</td></tr>
+        <tr><td><code>script_mismatch</code></td><td>no</td><td>Response is in a different script.</td></tr>
+        <tr><td><code>language_mismatch</code></td><td>no</td><td>Only with <code>strict_language_check=True</code>: Romanized Hindi prompt, English reply.</td></tr>
+        <tr><td><code>no_script_signal</code></td><td>no</td><td>No letters in any recognized script (emoji, digits, punctuation).</td></tr>
+        <tr><td><code>empty</code></td><td>no</td><td>Prompt or response is blank.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><p><code>strict_language_check</code> is off by default because Hinglish detection is a 14-word heuristic and can misfire on English prompts (“Who directed Se7en?” contains “se”). Turn it on when your prompts are reliably Hinglish.</p></div>
+
+    <h2 id="check-trace">check_trace</h2>
+    <div class="sig">check_trace(source, trace, trap_words=None) -&gt; MetricResult</div>
+    <p>Reads a judge's reasoning (from any judge, not only vindex's) and flags it when it took the wrong reading of a known ambiguous Hindi term in the source. Deterministic and free.</p>
+<pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> check_trace
+
+r = check_trace(
+    source=<span class="s">"समुद्र तल पर पानी किस तापमान पर उबलता है?"</span>,
+    trace=<span class="s">"The question asks for the boiling point at the sea floor..."</span>,
+)
+r.label  <span class="c"># "misread_detected"</span></pre>
+    <p>Labels: <code>no_misread_detected</code>, <code>misread_detected</code>, <code>empty</code>. The bundled dictionary covers 69 terms: polysemous nouns, misleading compounds, tense-flipping time words (<span lang="hi">कल</span>), fractions and Indian number words. It detects misreadings of those terms, not mistranslation in general. Pass your own <code>trap_words</code> list to extend it.</p>
+    <p><code>check_trace_llm_fallback(source, trace, judge)</code> adds an opt-in LLM pass for misreadings a dictionary can't catch. It only sends the segments that don't align, and flags when the model's answer is ambiguous.</p>
+
+    <h2 id="similarity">calibrated_similarity</h2>
+    <div class="sig">calibrated_similarity(gold, response, language, encoder_name="", allow_muril=False, min_auc=0.7) -&gt; MetricResult</div>
+    <p>Embedding similarity against a gold answer, using a threshold calibrated for each encoder and language (<code>en</code>, <code>hi</code>, <code>hinglish</code>) instead of a fixed 0.5. Requires <code>vindex[similarity]</code>.</p>
+<pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> calibrated_similarity
+
+r = calibrated_similarity(
+    gold=<span class="s">"भारत की राजधानी नई दिल्ली है।"</span>,
+    response=<span class="s">"नई दिल्ली भारत की राजधानी है।"</span>,
+    language=<span class="s">"hi"</span>,
+)</pre>
+    <p>Labels: <code>similar</code>, <code>dissimilar</code>, <code>low_discrimination</code>, <code>empty</code>.</p>
+    <div class="callout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg><p>Most encoders separate right from wrong answers poorly in Hindi. When the calibrated AUC for your encoder and language is below <code>min_auc</code>, the result is <code>low_discrimination</code> with <code>passed=False</code> rather than a misleading verdict. Default encoder: <code>paraphrase-multilingual-mpnet-base-v2</code>. MuRIL is blocked unless you pass <code>allow_muril=True</code>, because it scores almost every pair near 0.99.</p></div>
+
+    <h2 id="judge">indic_judge</h2>
+    <div class="sig">indic_judge(question, answer, gold=None, judge=None, answering_model_id=None) -&gt; MetricResult</div>
+    <p>An LLM judge for correctness, with a rubric written in Hindi that treats Romanized Hindi as valid. Reference-free by default. Pass <code>gold</code> for reference mode: an exact match skips the model call entirely.</p>
+<pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> indic_judge
+
+r = indic_judge(
+    question=<span class="s">"समुद्र तल पर पानी किस तापमान पर उबलता है?"</span>,
+    answer=<span class="s">"समुद्र तल पर पानी 100 डिग्री सेल्सियस पर उबलता है।"</span>,
+)
+r.passed                      <span class="c"># True</span>
+r.detail[<span class="s">"judge_model_id"</span>]     <span class="c"># "openai/gpt-oss-120b"</span>
+r.detail[<span class="s">"judge_reasoning"</span>]    <span class="c"># the judge's own reasoning — feed it to check_trace</span></pre>
+    <ul>
+      <li><strong>Conservative:</strong> passes only on the top rubric score at high judge confidence. Anything less is <code>flagged</code>.</li>
+      <li><strong>Reproducible:</strong> temperature 0, and the judge's model id is stored in every result.</li>
+      <li><strong>Self-judging guard:</strong> pass <code>answering_model_id</code> and vindex warns when the judge comes from the same model family.</li>
+    </ul>
+    <p>Labels: <code>matched</code>, <code>flagged</code>, <code>judge_error</code>, <code>empty</code>.</p>
+
+    <h2 id="judges">Choosing a judge</h2>
+<pre data-copyable><span class="k">from</span> vindex.judge_model <span class="k">import</span> GroqJudge, OpenAIJudge, AnthropicJudge, LiteLLMJudge
+
+GroqJudge()                              <span class="c"># GROQ_API_KEY, default openai/gpt-oss-120b</span>
+OpenAIJudge(<span class="s">"gpt-4o"</span>)                     <span class="c"># OPENAI_API_KEY</span>
+AnthropicJudge(<span class="s">"claude-sonnet-4-5"</span>)       <span class="c"># ANTHROPIC_API_KEY</span>
+LiteLLMJudge(<span class="s">"gemini/gemini-1.5-pro"</span>)     <span class="c"># any LiteLLM provider</span></pre>
+    <p>Anything with a <code>model_id</code> property and a <code>call(prompt) -&gt; str</code> method works as a judge. Pin a dated model version, never a “latest” alias, and never judge a model with itself. Indic competence doesn't track overall model size, so check your judge against the bundled benchmark before trusting it.</p>
+
+    <h2 id="calibrate">Calibrate on your own data</h2>
+    <p>The labelled data behind the shipped thresholds is included, so you can measure your own encoder or judge instead of trusting ours.</p>
+<pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> calibrate, indic_judge
+<span class="k">from</span> vindex.datasets <span class="k">import</span> (
+    load_similarity_benchmark, similarity_benchmark_for_calibration, score_judge_benchmark,
+)
+
+<span class="c"># Encoder: fit a threshold for your own similarity function</span>
+cases = load_similarity_benchmark()
+correct, wrong = similarity_benchmark_for_calibration(cases, my_similarity, language=<span class="s">"hi"</span>)
+fit = calibrate(correct, wrong)
+fit.threshold, fit.warnings
+
+<span class="c"># Judge: agreement with two human graders on 62 labelled traces</span>
+report = score_judge_benchmark(<span class="k">lambda</span> t: <span class="s">"correct"</span> <span class="k">if</span> indic_judge(t.question, t.answer).passed <span class="k">else</span> <span class="s">"wrong"</span>)
+report.agreement_grader1, report.agreement_grader2</pre>
+
+    <h2 id="integrations">Integrations</h2>
+    <p>Ready-made adapters live in <a href="https://github.com/dripston/vindex/tree/master/examples/integrations"><code>examples/integrations</code></a>:</p>
+    <ul>
+      <li><strong>DeepEval</strong> — <code>ScriptAdherenceMetric</code>, usable with <code>evaluate()</code> and <code>assert_test()</code>.</li>
+      <li><strong>promptfoo</strong> — a Python assertion file and example config.</li>
+      <li><strong>Ragas</strong> — a <code>SingleTurnMetric</code>.</li>
+    </ul>
+    <p>Each adapter is about 50 lines. To wrap a different check, swap the <code>script_adherence</code> call for any other vindex function.</p>
+
+    <h2 id="limits">Limitations</h2>
+    <ul>
+      <li><strong>Scripts:</strong> Devanagari, Bengali, Gurmukhi, Gujarati, Odia, Tamil, Telugu, Kannada, Malayalam and Latin. Text in any other script has no bucket of its own.</li>
+      <li><strong>Hinglish detection</strong> is a function-word heuristic. It's only used for the opt-in <code>language_mismatch</code> label.</li>
+      <li><strong>Similarity languages:</strong> thresholds ship for <code>en</code>, <code>hi</code> and <code>hinglish</code>. For anything else, calibrate on your own data.</li>
+      <li><strong>check_trace</strong> catches misreadings of its dictionary terms only. Grow the list from what you see in production.</li>
+      <li><strong>indic_judge</strong> is an LLM and can be wrong. Its rubric is Hindi-specific; other languages have not been validated.</li>
+    </ul>
+    <p>Missing a language or found a false positive? <a href="https://github.com/dripston/vindex/issues">Open an issue</a>.</p>
+  </article>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg" alt="">vindex</a>
+    <nav aria-label="Footer">
+      <a href="./">Home</a>
+      <a href="https://github.com/dripston/vindex">GitHub</a>
+      <a href="https://pypi.org/project/vindex/">PyPI</a>
+      <a href="https://github.com/dripston/vindex/blob/master/CHANGELOG.md">Changelog</a>
+    </nav>
+    <span>MIT · Made in Bengaluru</span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

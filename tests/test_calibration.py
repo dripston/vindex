@@ -1,8 +1,6 @@
 """
-Tests for vindex.calibration: the shipped calibration table (Milestone
-3.1), MuRIL warning (3.2), and calibrate() for user-fitted thresholds
-(3.3). See src/vindex/calibration.py's module docstring for where the
-shipped table's numbers come from and their stated small-sample caveat.
+Tests for vindex.calibration: the shipped calibration table, the MuRIL
+warning, and calibrate() for user-fitted thresholds.
 """
 
 import pytest
@@ -38,14 +36,8 @@ def test_default_encoder_is_in_the_table() -> None:
 
 
 def test_every_cell_states_a_small_case_count() -> None:
-    # Milestone 3.1: "state plainly it came from ~10 cases per cell."
-    # Regenerated from real per-case data (see calibration.py's comment
-    # above CALIBRATION_TABLE): "hi" cells are 9, not 10 -- one task's
-    # english_gold/full_sentence Hindi variant has 9 correct-answer
-    # rows in discrimination_per_case.csv, not 10. The old hand-typed
-    # table used the CalibratedThreshold.n_cases default of 10
-    # everywhere, which was never actually checked against the real
-    # per-case count until this regeneration.
+    # Each cell is calibrated from ~10 cases; "hi" cells have 9 because
+    # one task's Hindi variant has 9 correct-answer rows.
     for by_language in CALIBRATION_TABLE.values():
         for cell in by_language.values():
             assert cell.n_cases in (9, 10)
@@ -92,11 +84,7 @@ def test_muril_cells_score_at_or_near_chance_at_default() -> None:
         assert cell.accuracy_at_default <= 0.55
 
 
-# --- shipped table warnings (found by an independent outside review:
-# CalibratedThreshold.warnings existed but the shipped table never
-# populated it -- now regenerated from real per-case data, see the
-# comment above CALIBRATION_TABLE for exactly what calibrate()'s guard
-# does and doesn't catch) ---
+# --- shipped table warnings ---
 
 
 def test_labse_en_cell_warns_at_or_below_chance() -> None:
@@ -115,16 +103,13 @@ def test_e5_base_en_cell_has_no_warnings() -> None:
     assert cell.warnings == ()
 
 
-# --- roc_auc field (added after repeated independent outside review
-# kept finding that calibrate()'s .warnings guard, based on same-sample
-# fitted accuracy, cannot detect a cell with weak real AUC) ---
+# --- roc_auc field (catches weak cells that calibrate()'s accuracy-based
+# warnings cannot) ---
 
 
 def test_e5_base_hi_cell_has_chance_level_auc() -> None:
     # This cell's fitted accuracy (0.632) looks fine, but real AUC is
-    # exactly 0.500 -- chance. This is the cell every review of this
-    # project independently flagged as the sharpest example of
-    # accuracy-looks-fine-but-AUC-says-chance.
+    # exactly 0.500 -- chance.
     cell = CALIBRATION_TABLE["intfloat/multilingual-e5-base"]["hi"]
     assert abs(cell.roc_auc - 0.5) < 0.01
 
@@ -182,14 +167,11 @@ def test_calibrate_empty_wrong_raises() -> None:
         calibrate([0.5], [])
 
 
-# --- calibrate() warnings (added after an outside review found these
-# degenerate inputs were accepted silently, with no signal anything
-# was wrong) ---
+# --- calibrate() warnings on degenerate input ---
 
 
 def test_calibrate_single_identical_point_warns_too_few_cases() -> None:
-    # Regression: calibrate([0.5], [0.5]) used to return threshold=0.5
-    # looking like a real fit, with nothing indicating it was one point
+    # A single point per side must not look like a real fit: one point
     # each with accuracy_at_threshold == 0.0 (correct must be >=
     # threshold, wrong must be < threshold; a tie goes to "correct").
     result = calibrate([0.5], [0.5])
@@ -239,11 +221,8 @@ def test_calibrate_clean_fit_has_no_warnings() -> None:
 
 
 def test_calibrate_nan_in_correct_scores_raises() -> None:
-    # Regression: a NaN in similarities_correct used to be silently
-    # treated as always "wrong" (s >= threshold is False for any
-    # threshold when s is NaN), with no warning -- the out-of-[-1,1]
-    # range check couldn't catch it either (nan < -1.0 and nan > 1.0
-    # are both False).
+    # A NaN would otherwise be silently treated as always "wrong", and
+    # the [-1, 1] range check cannot catch it.
     with pytest.raises(ValueError, match="NaN"):
         calibrate([float("nan"), 0.9], [0.1, 0.2])
 

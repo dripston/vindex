@@ -99,10 +99,8 @@ def test_hinglish_prompt_roman_hinglish_response_matched() -> None:
 
 
 def test_hinglish_prompt_roman_english_response_matches_by_default() -> None:
-    # DEFAULT CHANGED (found by repeated independent outside review,
-    # each recommending the same thing): language_mismatch's false
-    # positive rate is proven and unfixable by a threshold (see
-    # language.py's module docstring), so strict_language_check now
+    # language_mismatch has known false positives that a threshold cannot
+    # fix (see language.py's module docstring), so strict_language_check
     # defaults to False -- a Roman-script response to a code-mixed/
     # Hinglish prompt passes the script check on its own merits,
     # without also gating on the 14-word Hinglish-detection heuristic.
@@ -123,10 +121,9 @@ def test_hinglish_prompt_roman_english_response_is_language_mismatch_when_strict
 
 
 def test_incidental_single_word_match_is_not_a_false_positive_by_default() -> None:
-    # The false positive this metric's docs and multiple outside
-    # reviews documented ("se" in "Se7en" only exists because a digit
-    # splits the word) no longer hard-fails by default, since
-    # strict_language_check now defaults to False.
+    # The documented false positive ("se" in "Se7en" only exists because
+    # a digit splits the word) does not hard-fail by default, since
+    # strict_language_check defaults to False.
     r = script_adherence("Who directed Se7en?", "David Fincher directed that thriller.")
     assert r.label == "matched"
     assert r.passed is True
@@ -190,11 +187,11 @@ def test_detail_contains_prompt_and_response_labels() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Milestone 1.5: every script, every label, and edge-case inputs (empty,
+# Every script, every label, and edge-case inputs (empty,
 # whitespace, numerals, emoji, punctuation, mixed-script response, and a
 # third-language response classify() has no bucket for).
 #
-# Sentences reused from tests/test_script.py's Milestone 1.2 real-sentence
+# Sentences reused from tests/test_script.py's real-sentence
 # set (each sourced from that language's own Wikipedia; see test_script.py
 # for source URLs) -- not rewritten here, same prompt used as response to
 # get an exact same-script "matched" case per script.
@@ -272,10 +269,8 @@ def test_numerals_only_response_to_romanized_prompt() -> None:
 
 
 def test_numerals_only_prompt_is_not_empty_and_is_no_script_signal() -> None:
-    # Regression: the PROMPT-side no_script_signal check (found missing
-    # by an outside review; the response-side check existed since
-    # v0.2.1, the prompt side did not) now catches a numerals-only
-    # prompt the same way the response side already did -- classify()
+    # Regression: the PROMPT-side no_script_signal check catches a
+    # numerals-only prompt the same way the response side does -- classify()
     # == "mixed" only because there's nothing to rank, not because it's
     # genuinely code-mixed. This used to bucket as "code-mixed"
     # (read as Hinglish) and could then score a clean pass; now it
@@ -399,7 +394,7 @@ def test_real_devanagari_response_with_trailing_danda_is_unaffected() -> None:
     assert r.passed is True
 
 
-# --- Indic-digit-only response (found by an independent outside review) ---
+# --- Indic-digit-only response ---
 
 
 def test_devanagari_numerals_only_response_is_no_script_signal() -> None:
@@ -454,9 +449,7 @@ def test_devanagari_sentence_containing_numerals_is_unaffected() -> None:
     assert r.passed is True
 
 
-# --- PROMPT-side no_script_signal (found missing by an outside review:
-# the response-side check existed since v0.2.1, the prompt side never
-# had an equivalent) ---
+# --- PROMPT-side no_script_signal ---
 
 
 def test_emoji_only_prompt_is_no_script_signal() -> None:

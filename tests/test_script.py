@@ -1,7 +1,6 @@
 """
-Ported from script_check.py's _run_tests() (Milestone 1.1). Every case
-below existed in the original inline test runner; this file just moves
-them into pytest, one assertion per test, with no logic changes.
+Tests for vindex.script: character counting, classification, and
+script-adherence helpers.
 """
 
 from vindex.script import (
@@ -179,7 +178,7 @@ def test_real_roman_hinglish_answer_is_adherent() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Milestone 1.2: extend to 8 scripts. One real sentence per script, each
+# All supported Indic scripts. One real sentence per script, each
 # fetched from that language's own Wikipedia (first sentence of a real
 # article), not written or translated by hand. Source URL is next to each
 # sentence so the provenance is checkable.

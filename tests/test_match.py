@@ -1,5 +1,5 @@
 """
-Tests for vindex.match's three match modes (Milestone 2.3). Each function
+Tests for vindex.match's three match modes. Each function
 normalizes internally via vindex.normalize -- see test_normalize.py for
 normalization-specific coverage (diacritics, numerals, script). These
 tests focus on the comparison logic itself: exact/F1/char-similarity

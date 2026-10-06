@@ -1,26 +1,11 @@
-"""
-Align-then-judge: diff first, judge only what disagrees (Milestone 5.4).
+"""Align-then-judge: diff an answer against gold, judge only what differs.
 
-Sarvam's shape, applied to reference-based judging: word-level diff
-`response` against `gold` first. If they align completely (every
-opcode is "equal"), there is nothing to judge -- return a pass with no
-LLM call at all. If they diverge, extract only the non-equal spans
-(with a small window of surrounding context so the judge isn't
-evaluating a bare fragment) instead of sending the full texts.
-
-This bounds cost, latency, and variance to the subset of cases that
-actually disagree: a response that is character-for-character (or
-near enough) the gold answer never touches the judge model at all, and
-a response that differs in one clause doesn't force the judge to
-re-read and re-reason about the parts that already match.
-
-Only applies to reference-based judging (Milestone 5.3's non-default
-mode) -- reference-free judging has nothing to diff against by
-definition, since there is no second text.
-
-Uses difflib.SequenceMatcher (stdlib), same choice as vindex.match
-(Milestone 2.3) for the same reason: no new third-party dependency for
-a diffing primitive stdlib already provides adequately.
+Used by :func:`vindex.indic_judge` in reference-based mode. The response
+is diffed against the gold answer word by word (``difflib``). If every
+word matches, no LLM call is needed. Otherwise only the differing spans,
+each with a few words of surrounding context, are sent to the judge.
+This bounds cost, latency, and variance to the parts that actually
+disagree.
 """
 
 from __future__ import annotations
@@ -33,16 +18,15 @@ _CONTEXT_WORDS = 3
 
 @dataclass(frozen=True, slots=True)
 class AlignmentResult:
-    """aligned      : True if response and gold matched completely at
-                       the word level -- no LLM call needed.
-    mismatched_response : the response's non-matching spans, joined
-                       with a small window of surrounding context for
-                       readability, or "" if aligned is True.
-    mismatched_gold : the gold's non-matching spans, same shape.
-    similarity_ratio : SequenceMatcher's own ratio() over the two word
-                       sequences, for logging/debugging -- not used to
-                       decide aligned (aligned is exact: every opcode
-                       must be "equal", not "close enough").
+    """Result of aligning a response against a gold answer.
+
+    Attributes:
+        aligned: True if response and gold match exactly at the word level.
+        mismatched_response: The response's differing spans with surrounding
+            context, joined by ``" ... "``; empty if ``aligned``.
+        mismatched_gold: The gold answer's differing spans, same shape.
+        similarity_ratio: ``SequenceMatcher.ratio()`` over the two word
+            sequences, for logging. Not used to decide ``aligned``.
     """
 
     aligned: bool
@@ -52,24 +36,20 @@ class AlignmentResult:
 
 
 def align(response: str, gold: str) -> AlignmentResult:
-    """Word-level diff of `response` against `gold`.
+    """Diff a response against a gold answer at the word level.
 
-    Splits on whitespace only (script-agnostic: does not require
-    word-boundary logic beyond that, since Devanagari and other Indic
-    scripts already use spaces between words the same as Latin text).
+    Words are split on whitespace only, which works for Latin and Indic
+    scripts alike; whitespace differences are therefore ignored. The
+    comparison is case-sensitive: ``"Same Answer"`` and ``"same answer"``
+    do not align and are sent to the judge, since whether case matters
+    depends on the domain.
 
-    CASE-SENSITIVE (noted after an independent outside review): no
-    `.lower()` anywhere in this function, so `"Same Answer"` and `"same
-    answer"` are NOT `aligned=True` -- they fall through to a real
-    judge call (indic_judge's reference-based mode) instead of the
-    free exact-match short-circuit. Not treated as a bug and left
-    case-sensitive deliberately: a case difference can be
-    substantively wrong in some domains (a code/technical answer where
-    `"AND"` and `"and"` mean different things) and cosmetic in others
-    (a proper noun's capitalization) -- there is no single correct
-    default, and the judge model is a reasonable arbiter for exactly
-    this kind of ambiguous case, unlike whitespace differences (which
-    are unambiguously cosmetic and are normalized by `.split()` above).
+    Args:
+        response: The candidate answer. ``None`` is treated as empty.
+        gold: The reference answer. ``None`` is treated as empty.
+
+    Returns:
+        An :class:`AlignmentResult`.
     """
     response_words = (response or "").split()
     gold_words = (gold or "").split()

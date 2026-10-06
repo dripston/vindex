@@ -1,9 +1,6 @@
 """
-Tests for vindex.datasets (v0.5.0): benchmark data + scoring helpers so
-a caller can verify calibrated_similarity/indic_judge on their own
-encoder/judge instead of trusting this project's shipped numbers alone.
-Real data, real files -- no mocks, matching this project's preference
-for real data over mocks.
+Tests for vindex.datasets: the shipped benchmark data and scoring
+helpers. Uses the real packaged data files, no mocks.
 """
 
 from __future__ import annotations
@@ -28,9 +25,7 @@ def test_load_similarity_benchmark_returns_list_of_cases() -> None:
 
 def test_load_similarity_benchmark_has_89_cases() -> None:
     # 10 questions x 3 languages x {correct, wrong_subtle, wrong_hard} =
-    # 90, minus 1 combination missing from the source data -- matches
-    # experiments/results_clean/discrimination_per_case.csv's real
-    # unique case_id count, not a round number chosen for its own sake.
+    # 90, minus 1 combination missing from the source data.
     cases = load_similarity_benchmark()
     assert len(cases) == 89
 
@@ -52,9 +47,7 @@ def test_load_similarity_benchmark_case_ids_are_unique() -> None:
 
 
 def test_load_similarity_benchmark_includes_documented_example() -> None:
-    # README.md's calibrated_similarity example uses this exact
-    # question -- confirms the shipped benchmark is the same data the
-    # docs are built from, not a divergent copy.
+    # The documented calibrated_similarity example uses this question.
     cases = load_similarity_benchmark()
     task_ids = {c.task_id for c in cases}
     assert "capital_maharashtra" in task_ids
@@ -121,8 +114,7 @@ def test_load_judge_benchmark_returns_list_of_traces() -> None:
 
 
 def test_load_judge_benchmark_has_62_traces() -> None:
-    # Matches Milestone 6.3's human-agreement study exactly -- see
-    # README.md's Limitations section and docs/annotation/BIAS_PROTOCOL.md.
+    # The full human-agreement benchmark.
     traces = load_judge_benchmark()
     assert len(traces) == 62
 
@@ -141,8 +133,8 @@ def test_load_judge_benchmark_trace_ids_are_unique() -> None:
 
 
 def test_load_judge_benchmark_includes_documented_samudra_tal_case() -> None:
-    # The exact समुद्र तल (sea level / sea floor) case this project's
-    # whole indic_judge rubric-in-Hindi decision is built on.
+    # The समुद्र तल (sea level / sea floor) case behind indic_judge's
+    # Hindi rubric.
     traces = load_judge_benchmark()
     assert any(t.trap_word == "समुद्र तल" for t in traces)
 

@@ -1,14 +1,10 @@
 """
-Tests for vindex.judge (Milestone 5): indic_judge, the Hindi-rubric,
-script-aware, reference-free-by-default LLM judge.
+Tests for vindex.judge: indic_judge, the Hindi-rubric, script-aware,
+reference-free-by-default LLM judge.
 
-Real Groq API calls, not mocks -- matches this project's stated
-preference for real data over mocks (see test_similarity.py). Skipped
-if GROQ_API_KEY isn't set. Slower and non-free by design: this is
-testing real judge behavior, including the exact समुद्र तल case that
-motivated Milestone 5.1 in the first place (experiments/FINDINGS.md) --
-a mock could not meaningfully test whether the Hindi rubric actually
-avoids that mistranslation, only that some code path was reached.
+Makes real Groq API calls, not mocks, and is skipped if GROQ_API_KEY
+isn't set. A mock could not test whether the Hindi rubric actually
+avoids the समुद्र तल mistranslation, only that a code path was reached.
 """
 
 from __future__ import annotations
@@ -47,11 +43,11 @@ def test_indic_judge_none_question_scores_empty() -> None:
     assert r.label == "empty"
 
 
-# --- the समुद्र तल regression case (Milestone 5.1's whole reason to exist) ---
+# --- the समुद्र तल regression case ---
 
 
 def test_indic_judge_does_not_mistranslate_samudra_tal() -> None:
-    # Exact case from experiments/FINDINGS.md: an English-rubric judge
+    # Observed failure: an English-rubric judge
     # mistranslated समुद्र तल ("sea level") as "sea floor" mid-reasoning
     # and scored this CORRECT answer 0.0. The Hindi rubric must not
     # repeat that error.
@@ -89,7 +85,7 @@ def test_indic_judge_reference_free_wrong_answer() -> None:
     assert result.score < 0.5
 
 
-# --- script-aware prompting (Milestone 5.2): Romanized Hindi is not an error ---
+# --- script-aware prompting: Romanized Hindi is not an error ---
 
 
 def test_indic_judge_does_not_penalize_romanized_hindi() -> None:
@@ -101,7 +97,7 @@ def test_indic_judge_does_not_penalize_romanized_hindi() -> None:
     assert result.score >= 0.8
 
 
-# --- align-then-judge (Milestone 5.4): reference-based mode ---
+# --- align-then-judge: reference-based mode ---
 
 
 def test_indic_judge_reference_based_exact_match_skips_llm_call() -> None:
@@ -126,7 +122,7 @@ def test_indic_judge_reference_based_mismatch_still_flagged() -> None:
     assert result.detail["mode"] == "reference_based"
 
 
-# --- conservative default (Milestone 5.5) ---
+# --- conservative default ---
 
 
 def test_indic_judge_result_has_confidence_in_detail() -> None:
@@ -137,7 +133,7 @@ def test_indic_judge_result_has_confidence_in_detail() -> None:
     assert result.detail["confidence"] in ("high", "low")
 
 
-# --- determinism discipline (Milestone 5.6) ---
+# --- determinism discipline ---
 
 
 def test_indic_judge_records_judge_model_id() -> None:
@@ -157,7 +153,7 @@ def test_groq_judge_temperature_is_not_configurable() -> None:
     assert "temperature" not in sig.parameters
 
 
-# --- self-enhancement bias (Milestone 5.7) ---
+# --- self-enhancement bias ---
 
 
 def test_indic_judge_warns_on_same_family_answering_model() -> None:

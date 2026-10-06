@@ -1,12 +1,11 @@
 """
-Tests for vindex.similarity's calibrated_similarity metric (Milestone
-3). These load a real encoder (sentence-transformers/all-MiniLM-L6-v2,
+Tests for vindex.similarity's calibrated_similarity metric. These load a
+real encoder (sentence-transformers/all-MiniLM-L6-v2,
 the smallest of the five calibrated encoders) and therefore need
 sentence-transformers installed (`pip install vindex[similarity]`) --
 skipped automatically if it isn't. Slower than the rest of the suite
 by design: this is testing real encode-and-compare behavior, not
-mocked logic, matching this project's preference for real data over
-mocks (see experiments/scripts/validate_vindex_port.py).
+mocked logic.
 """
 
 from __future__ import annotations
@@ -113,7 +112,7 @@ def test_calibrated_similarity_detail_reports_calibration_metadata() -> None:
 
 
 def test_calibrated_similarity_detail_has_unclamped_cosine_similarity() -> None:
-    # Regression (found by an independent outside review): the
+    # Regression: the
     # detail key "raw_cosine_similarity" was actually the POST-clamp
     # value ([0, 1]), not the true unclamped cosine similarity -- a
     # misleading name. "unclamped_cosine_similarity" now carries the
@@ -138,17 +137,14 @@ def test_calibrated_similarity_score_is_bounded() -> None:
     assert 0.0 <= r.score <= 1.0
 
 
-# --- degenerate-cell warnings (found by an independent outside review:
-# CalibratedThreshold.warnings existed for calibrate()'s own callers
-# but the shipped CALIBRATION_TABLE never surfaced any) ---
+# --- degenerate-cell warnings ---
 
 
 def test_calibrated_similarity_surfaces_calibration_warning_for_degenerate_cell() -> None:
     # LaBSE/en's shipped cell has fitted accuracy at chance (see
     # calibration.py's CALIBRATION_TABLE comment) -- calibrate() itself
     # would warn about this data, and calibrated_similarity must now
-    # copy that warning into both detail and reason, not just leave it
-    # sitting undiscoverable in the README's AUC table. min_auc=0.0
+    # copy that warning into both detail and reason. min_auc=0.0
     # disables the (separate, stronger) AUC gate below so this test can
     # still reach the .warnings path specifically -- LaBSE/en's real
     # AUC (0.070) is also below the default min_auc=0.7, so without
@@ -177,9 +173,7 @@ def test_calibrated_similarity_no_warning_key_for_clean_cell() -> None:
     assert "WARNING" not in r.reason
 
 
-# --- min_auc gate (SAFE DEFAULT, added after repeated independent
-# outside review kept finding calibrated_similarity return a clean,
-# confident similar/dissimilar verdict for cells with no real AUC) ---
+# --- min_auc gate: no confident verdict for cells with no real AUC ---
 
 
 def test_calibrated_similarity_low_auc_cell_is_low_discrimination_by_default() -> None:
@@ -231,7 +225,7 @@ def test_calibrated_similarity_strong_auc_cell_not_low_discrimination() -> None:
     assert r.label in ("similar", "dissimilar")
 
 
-# --- NaN cosine similarity (found by an independent outside review) ---
+# --- NaN cosine similarity ---
 
 
 def test_calibrated_similarity_raises_on_nan_cached_embedding() -> None:

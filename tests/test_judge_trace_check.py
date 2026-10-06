@@ -1,14 +1,13 @@
 """
-Tests for vindex.judge_trace_check (Milestone 6). check_trace() (6.1)
-is pure, deterministic, offline logic -- tested mostly with injected
-TrapWord fixtures (समुद्र तल from this project's own documented Phase 0
-finding, plus a synthetic उत्तर fixture -- see _UTTAR's own comment
+Tests for vindex.judge_trace_check. check_trace() is pure,
+deterministic, offline logic -- tested mostly with injected TrapWord
+fixtures (the documented समुद्र तल case, plus a synthetic उत्तर fixture -- see _UTTAR's own comment
 below for why उत्तर is injected here but no longer in the real
 dictionary) so the logic tests don't depend on the real dictionary's
 exact size or content, plus a handful of tests against the real,
 now-filled-in dictionary (see test_trap_words.py) to confirm the
 loader and checker actually agree on real data.
-check_trace_llm_fallback() (6.4) needs a real Groq call; skipped if
+check_trace_llm_fallback() needs a real Groq call; skipped if
 GROQ_API_KEY isn't set, matching test_judge.py's convention.
 """
 
@@ -131,7 +130,7 @@ def test_check_trace_skips_term_not_present_in_source() -> None:
     assert r.detail["flagged_terms"] == []
 
 
-# --- check_trace: the उत्तर (north vs answer) case from BUILD_PLAN.md ---
+# --- check_trace: the उत्तर (north vs answer) case ---
 
 
 def test_check_trace_catches_uttar_mistranslation() -> None:
@@ -144,7 +143,7 @@ def test_check_trace_catches_uttar_mistranslation() -> None:
 
 def test_check_trace_word_boundary_no_false_match_inside_longer_word() -> None:
     # Regression: substring matching used to flag "answer" inside
-    # "unanswerable" -- an outside review's real finding. Word-boundary
+    # "unanswerable". Word-boundary
     # matching fixes this specific accident (does NOT fix the broader,
     # documented limitation that an isolated, correct, unrelated use of
     # "answer" still flags -- see _trace_says_wrong_reading's docstring).
@@ -155,8 +154,7 @@ def test_check_trace_word_boundary_no_false_match_inside_longer_word() -> None:
 
 
 def test_check_trace_common_word_gloss_false_positive_known_limitation() -> None:
-    # KNOWN LIMITATION (see _trace_says_wrong_reading's docstring's
-    # "SHARPER VERSION" paragraph, found by an outside review): उत्तर's
+    # KNOWN LIMITATION (see _trace_says_wrong_reading's docstring): उत्तर's
     # reading_b, "answer", is an ordinary English word that any judge
     # trace evaluating correctness is likely to use regardless of
     # whether उत्तर (north) was ever misread. Word-boundary matching
@@ -220,7 +218,7 @@ def test_check_trace_real_dictionary_catches_samudra_tal() -> None:
 
 def test_check_trace_real_dictionary_no_longer_flags_uttar_as_answer() -> None:
     # Regression: उत्तर (north/answer) was REMOVED from the real
-    # dictionary (found by an independent outside review) -- a Hindi
+    # dictionary -- a Hindi
     # question containing उत्तर, answered correctly in English using
     # the word "answer", must no longer be flagged. This is the
     # opposite assertion of what this test checked before the entry
@@ -231,7 +229,7 @@ def test_check_trace_real_dictionary_no_longer_flags_uttar_as_answer() -> None:
     assert r.label == "no_misread_detected"
 
 
-# --- check_trace_llm_fallback (Milestone 6.4): needs a real Groq call ---
+# --- check_trace_llm_fallback: needs a real Groq call ---
 
 pytest.importorskip("groq")
 if not os.environ.get("GROQ_API_KEY"):

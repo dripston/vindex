@@ -1,33 +1,19 @@
-"""
-Three match modes for script_normalized_match (Milestone 2.3).
+"""String-comparison scores that are robust to script and spelling.
 
-Each function normalizes both inputs via vindex.normalize.normalize()
-before comparing, so callers pass raw text (in any script/spelling) and
-get a comparison that already accounts for script, case, diacritics,
-punctuation, and numeral differences -- see normalize.py for exactly
-what that does and does not fix (code-mixed transliteration is its one
-documented known limitation).
+Each function normalizes both inputs with :func:`vindex.normalize.normalize`
+before comparing, so raw text in any supported script can be passed
+directly; script, case, diacritic, punctuation, and numeral differences
+are already reconciled. Code-mixed transliteration remains a known
+limitation of normalization (see :mod:`vindex.normalize`).
 
-  exact_match_score      : 1.0 if normalized strings are identical,
-                            else 0.0. Strictest mode -- a single
-                            mismatched token fails it.
-  token_f1_score          : whitespace-token-level F1 (precision and
-                            recall over token multisets, harmonic mean).
-                            Standard QA-evaluation style (SQuAD-style
-                            token F1). Tolerant of reordering, partial
-                            overlap, extra/missing words.
-  char_similarity_score    : difflib.SequenceMatcher ratio over the
-                            normalized strings. Character-level, so
-                            tolerant of small spelling differences (e.g.
-                            the vowel-length noise transliterate.py's
-                            docstring documents) that would fail
-                            exact_match_score and can under- or
-                            over-count in token_f1_score depending on
-                            which token they land in.
+- :func:`exact_match_score`: 1.0 if the normalized strings are identical,
+  else 0.0.
+- :func:`token_f1_score`: SQuAD-style whitespace-token F1; tolerant of
+  reordering and partial overlap.
+- :func:`char_similarity_score`: character-level similarity; tolerant of
+  small spelling differences such as transliteration vowel-length noise.
 
-None of these three functions returns a MetricResult -- they are
-comparison primitives. script_normalized_match (not yet built) is the
-public MetricResult-returning metric that will pick among them.
+These return plain floats in [0, 1], not :class:`vindex.result.MetricResult`.
 """
 
 from __future__ import annotations
@@ -38,10 +24,9 @@ from vindex.normalize import normalize
 
 
 def exact_match_score(a: str | None, b: str | None) -> float:
-    """1.0 if normalize(a) == normalize(b), else 0.0.
+    """Return 1.0 if both inputs normalize to the same string, else 0.0.
 
-    Two empty/None inputs are treated as a match (both normalize to
-    ""); one empty and one non-empty is not a match.
+    Two empty or ``None`` inputs match; one empty and one non-empty do not.
     """
     na, nb = normalize(a), normalize(b)
     if na == "" and nb == "":
@@ -54,12 +39,11 @@ def _tokens(text: str) -> list[str]:
 
 
 def token_f1_score(a: str | None, b: str | None) -> float:
-    """Whitespace-token F1 between normalize(a) and normalize(b).
+    """Return whitespace-token F1 between the normalized inputs.
 
-    Precision and recall are computed over token multisets (a repeated
-    token counts once per occurrence, in both the numerator via min()
-    and each side's own total). Two empty inputs score 1.0; one empty
-    and one non-empty scores 0.0.
+    Precision and recall are computed over token multisets, so repeated
+    tokens count once per occurrence. Two empty inputs score 1.0; one
+    empty and one non-empty score 0.0.
     """
     tokens_a = _tokens(normalize(a))
     tokens_b = _tokens(normalize(b))
@@ -86,14 +70,11 @@ def token_f1_score(a: str | None, b: str | None) -> float:
 
 
 def char_similarity_score(a: str | None, b: str | None) -> float:
-    """difflib.SequenceMatcher ratio between normalize(a) and normalize(b).
+    """Return the character-level similarity of the normalized inputs.
 
-    Ratcliff/Obershelp similarity, not true Levenshtein edit distance --
-    picked to avoid a second third-party dependency (see match.py's
-    module docstring). Two empty inputs score 1.0; one empty and one
-    non-empty scores 0.0 (SequenceMatcher's own ratio() already returns
-    1.0 for two empty strings, so this is handled without a special
-    case, but is stated here for clarity).
+    Uses ``difflib.SequenceMatcher.ratio()`` (Ratcliff/Obershelp), not
+    Levenshtein distance, to avoid a third-party dependency. Two empty
+    inputs score 1.0; one empty and one non-empty score 0.0.
     """
     na, nb = normalize(a), normalize(b)
     return SequenceMatcher(None, na, nb).ratio()

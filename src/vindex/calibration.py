@@ -1,46 +1,19 @@
-"""
-Calibration table for calibrated_similarity (Milestone 3.1-3.3).
+"""Calibrated similarity thresholds per (encoder, language).
 
-A default 0.5 cosine-similarity threshold performs at or near chance on
-most encoder/language combinations -- see experiments/README.md and
-experiments/results_clean/discrimination_summary.csv. This module ships
-a starting-point calibration table derived from that experiment, plus
-calibrate() for fitting your own thresholds on your own labelled data.
+A naive 0.5 cosine-similarity cutoff performs at or near chance on most
+encoder/language combinations. This module ships a starting-point
+calibration table for five encoders across English, Hindi, and Hinglish,
+plus :func:`calibrate` for fitting your own threshold on your own
+labelled data.
 
-WHERE THE TABLE COMES FROM (Milestone 3.1)
-
-experiments/scripts/discrimination.py ran 5 encoders against the 30
-cases in data/results_clean.json (10 tasks x 3 language variants),
-each case scored against a correct answer and two wrong answers
-(wrong_hard: different entity/fact; wrong_subtle: same entity, one
-detail wrong). For each (encoder, language) cell, the best threshold
-found is the cosine-similarity cutoff that maximizes correct-vs-
-wrong_hard discrimination accuracy over that cell's cases.
-
-STATED PLAINLY: each cell is calibrated from 10 cases (10 correct + 10
-wrong_hard answers, one task per case, 3 language variants x 10 tasks =
-30 cases total, split by variant into 3 cells of 10 per encoder). This
-is a small-sample calibration, not a large validation study. Treat
-these thresholds as a documented starting point, not ground truth --
-see calibrate() below to fit your own on your own labelled data, and
-see experiments/results_clean/discrimination_summary.csv for the full
-underlying numbers (including subtle-negative discrimination, and the
-english_gold/same_language_gold and short/full_sentence variants this
-table does not use).
-
-This table uses the english_gold + full_sentence slice specifically:
-english_gold because a single canonical gold answer (rather than a
-per-language gold) is the realistic production setup most callers have,
-and full_sentence because real model answers are full sentences, not
-bare entities (see experiments/scripts/beat_the_baseline.py's Milestone
-2.4 finding on why bare-entity golds under-score full-sentence
-answers). Hard-negative discrimination (not subtle) is used because it
-is the more defensible, less noisy signal to calibrate a general-
-purpose threshold against; subtle-negative discrimination is a harder,
-noisier task better suited to a dedicated correctness judge (see
-BUILD_PLAN.md's indic_judge milestone) than to a similarity threshold.
-
-encoder x language -> (threshold, accuracy_at_threshold, accuracy_at_0.5)
+Each shipped cell stores the cosine-similarity cutoff that maximized
+correct-vs-wrong discrimination accuracy on a small benchmark (about 10
+cases per cell, using a single English gold answer and full-sentence
+candidate answers), along with the accuracy at that cutoff, the accuracy
+at 0.5 for comparison, and the threshold-independent ROC AUC. These are
+small-sample calibrations: treat them as a documented starting point and
+prefer :func:`calibrate` on data from your own domain. The underlying
+benchmark data is available through :mod:`vindex.datasets`.
 """
 
 from __future__ import annotations
@@ -53,16 +26,14 @@ MURIL_MODEL_NAME = "google/muril-base-cased"
 MURIL_WARNING = (
     "google/muril-base-cased scores ~0.99 cosine similarity on nearly "
     "everything -- correct answers, wrong answers, even different "
-    "languages -- with std ~0.002 (see "
-    "experiments/results_clean/discrimination_summary.csv). It cannot "
+    "languages -- with std ~0.002. It cannot "
     "discriminate correct from wrong at any threshold. This is the "
     "encoder an Indian-language project reaches for first, because "
     "'Multilingual Representations for Indian Languages' sounds like "
     "exactly the right tool -- it is the trap. See the HindiWiC "
     "finding (Dairkee & Dubossarsky, 2024, 'Strengthening the WiC: New "
     "polysemy dataset in Hindi and lack of cross lingual transfer', "
-    "LREC-COLING 2024, https://github.com/haimdub/HindiWiC -- also "
-    "cited in this repo's data/trap_words/NOTICE.md): MuRIL scores 55% "
+    "LREC-COLING 2024, https://github.com/haimdub/HindiWiC): MuRIL scores 55% "
     "zero-shot on Hindi word-sense disambiguation, chance level for a "
     "2-way task, reaching 90% only after Hindi-specific fine-tuning it "
     "does not ship with. Use mpnet or e5 instead, or fine-tune MuRIL "
@@ -76,42 +47,22 @@ DEFAULT_ENCODER = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 class CalibratedThreshold:
     """One (encoder, language) calibration cell.
 
-    threshold          : cosine-similarity cutoff that maximized
-                          correct-vs-wrong_hard discrimination accuracy
-                          on the 10 cases in this cell.
-    accuracy_at_threshold : discrimination accuracy at `threshold`.
-    accuracy_at_default : discrimination accuracy at the naive default
-                          of 0.5, for comparison -- this is the number
-                          that makes the case for calibrating at all.
-    n_cases             : number of (correct, wrong_hard) case pairs
-                          this cell was calibrated from. Always 10 for
-                          the shipped table -- see module docstring.
-    warnings            : populated only by calibrate() (always empty,
-                          `()`, on the shipped CALIBRATION_TABLE
-                          entries above). Non-fatal signals that this
-                          particular fit may not be trustworthy -- see
-                          calibrate()'s docstring for exactly what is
-                          checked and why these are warnings, not
-                          raised errors.
-    roc_auc             : threshold-independent ROC AUC for this cell,
-                          from experiments/results_clean/
-                          discrimination_summary.csv's roc_auc_hard
-                          column (0.5 = chance, <0.5 = inverted). Added
-                          after repeated independent outside review kept
-                          finding the same gap: accuracy_at_threshold is
-                          an in-sample argmax fit and can look fine even
-                          when a cell has no real discrimination (e.g.
-                          multilingual-e5-base/hi fits at 0.632 accuracy
-                          here but has real AUC exactly 0.500, chance).
-                          calibrate()'s own .warnings guard cannot catch
-                          this case -- it only checks same-sample fitted
-                          accuracy, not AUC. See
-                          calibrated_similarity()'s docstring for how
-                          this is now used to warn callers directly,
-                          not just documented in README.md's AUC table.
-                          None only for a cell with no shipped AUC
-                          (never happens for CALIBRATION_TABLE's 15
-                          shipped cells; present for completeness).
+    Attributes:
+        threshold: Cosine-similarity cutoff that maximized correct-vs-wrong
+            discrimination accuracy for this cell.
+        accuracy_at_threshold: Discrimination accuracy at ``threshold``.
+            This is an in-sample fit and can look acceptable even when the
+            cell has no real discrimination; check ``roc_auc``.
+        accuracy_at_default: Discrimination accuracy at the naive default
+            of 0.5, for comparison.
+        n_cases: Number of (correct, wrong) case pairs the cell was fitted
+            on (the smaller side, for :func:`calibrate`).
+        warnings: Non-fatal signals that the fit may not be trustworthy.
+            See :func:`calibrate` for what is checked. An empty tuple means
+            none of those checks fired, not that the cell discriminates.
+        roc_auc: Threshold-independent ROC AUC for the cell (0.5 = chance,
+            below 0.5 = inverted). Set for every shipped cell; ``None`` for
+            results returned by :func:`calibrate`.
     """
 
     threshold: float
@@ -122,29 +73,13 @@ class CalibratedThreshold:
     roc_auc: float | None = None
 
 
-# Generated by experiments/scripts/generate_calibration_table.py from
-# experiments/results_clean/discrimination_per_case.csv,
-# gold_mode=english_gold, gold_length=full_sentence, by running the
-# real calibrate() function on each cell's real per-case correct/
-# wrong_hard similarity scores -- not hand-typed. Re-run that script
-# and paste its output here if the underlying data or calibrate()'s
-# guard logic ever changes; do not hand-edit these values or their
-# `warnings`.
+# Calibration data -- generated by running calibrate() on the benchmark's
+# per-case scores; do not edit by hand.
 #
-# WHY SOME CELLS HAVE WARNINGS AND SOME DON'T (read before trusting an
-# empty warnings tuple as "this cell is fine"): calibrate()'s guard
-# checks the SAME-SAMPLE argmax-fitted accuracy against chance
-# (<=0.5), not the threshold-independent ROC AUC. A cell can fit above
-# chance in-sample (so calibrate() stays quiet) while still having
-# AUC at or near chance on a proper discrimination measure -- e.g.
-# multilingual-e5-base/hi fits at 0.632 accuracy here (no warning) but
-# has real AUC 0.500 (exactly chance) per
-# discrimination_summary.csv's roc_auc_hard column. An empty
-# `warnings` tuple here means "not degenerate by calibrate()'s own
-# guard," not "has real discrimination" -- see README.md's "argument
-# for calibrated_similarity" section for the full AUC picture across
-# all 15 cells, which is the actual authority on which cells have
-# real signal.
+# An empty `warnings` tuple means a cell passed calibrate()'s own guards,
+# which check in-sample fitted accuracy only. Use `roc_auc` to judge
+# whether a cell has real discrimination: e.g. multilingual-e5-base/hi
+# fits at 0.632 accuracy with no warning but has ROC AUC 0.500 (chance).
 CALIBRATION_TABLE: dict[str, dict[str, CalibratedThreshold]] = {
     "sentence-transformers/all-MiniLM-L6-v2": {
         "en": CalibratedThreshold(
@@ -261,12 +196,19 @@ CALIBRATION_TABLE: dict[str, dict[str, CalibratedThreshold]] = {
 
 
 def get_threshold(encoder_name: str, language: str) -> CalibratedThreshold:
-    """Look up the shipped calibration for (encoder_name, language).
+    """Look up the shipped calibration for an encoder and language.
 
-    language is one of "en", "hi", "hinglish" (the three variants the
-    calibration data covers). Raises KeyError with a clear message if
-    either is not in the shipped table -- callers should fall back to
-    0.5 explicitly rather than have this silently guess.
+    Args:
+        encoder_name: Hugging Face model id of the encoder.
+        language: One of ``"en"``, ``"hi"``, ``"hinglish"``.
+
+    Returns:
+        The shipped :class:`CalibratedThreshold` for that cell.
+
+    Raises:
+        KeyError: If the encoder or language is not in the shipped table.
+            Callers should fall back to 0.5 (or :func:`calibrate`)
+            explicitly rather than have this guess.
     """
     try:
         by_language = CALIBRATION_TABLE[encoder_name]
@@ -290,53 +232,35 @@ def get_threshold(encoder_name: str, language: str) -> CalibratedThreshold:
 def calibrate(
     similarities_correct: list[float], similarities_wrong: list[float]
 ) -> CalibratedThreshold:
-    """Fit a threshold on YOUR labelled data (Milestone 3.3).
+    """Fit a similarity threshold on your own labelled data.
 
-    Given cosine similarities for known-correct pairs and known-wrong
-    pairs, sweep candidate thresholds (every observed similarity value)
-    and return the one that maximizes accuracy: correct pairs scoring
-    >= threshold, wrong pairs scoring < threshold.
+    Sweeps every observed similarity value as a candidate threshold and
+    returns the one that maximizes accuracy (correct pairs scoring
+    ``>= threshold``, wrong pairs scoring ``< threshold``).
 
-    The shipped CALIBRATION_TABLE is a starting point calibrated on 10
-    cases per cell from one dataset (see module docstring) -- it is not
-    a substitute for calibrating on your own data, which this function
-    exists to make easy.
+    A result is always returned for structurally valid input, even when
+    the fit looks poor; problems are reported in the result's
+    ``warnings`` tuple instead:
 
-    GUARDS (added after an independent outside review found this
-    function accepted degenerate input silently -- e.g.
-    `calibrate([0.5], [0.5])` returned threshold=0.5 as if it were a
-    real fit, and `calibrate([0.1, 0.2], [0.9, 0.8])`, an inverted
-    input where "correct" scores are lower than "wrong" scores,
-    returned a threshold with no indication anything was backwards):
-    this still ALWAYS returns a CalibratedThreshold for any structurally
-    valid input -- it does not raise just because a fit looks bad,
-    since refusing to fit at all would be worse for a caller with
-    genuinely small real-world data. Instead, non-fatal problems are
-    surfaced in the returned `.warnings` tuple:
-      - fewer than 5 cases on either side ("too few cases to trust
-        this fit").
-      - similarities outside cosine similarity's valid [-1, 1] range
-        on either side ("scores outside [-1, 1] -- is this actually
-        cosine similarity?").
-      - the fitted threshold does not beat a coin flip
-        (accuracy_at_threshold <= 0.5) ("fitted accuracy is at or
-        below chance -- this data may not separate correct from wrong
-        at all, or the correct/wrong lists may be swapped").
-    Always check `.warnings` before trusting a threshold from a small
-    or unfamiliar dataset; an empty tuple means none of these specific
-    checks fired, not that the fit is necessarily good.
+    - fewer than 5 cases on either side ("too few cases to trust this fit");
+    - scores outside cosine similarity's valid [-1, 1] range;
+    - fitted accuracy at or below chance (0.5), which may mean the data
+      does not separate correct from wrong, or the lists are swapped.
 
-    NaN IS DIFFERENT -- IT RAISES, NOT A WARNING (found by an
-    independent outside review): `calibrate([float("nan"), 0.9], [0.1,
-    0.2])` used to silently behave as if the NaN entry did not exist
-    (`s >= threshold` is False for any threshold when `s` is NaN, so a
-    NaN in similarities_correct is treated as always "wrong" without
-    comment), and the out-of-[-1,1]-range check could not catch it
-    either (`nan < -1.0` and `nan > 1.0` are both False). A NaN
-    similarity score is not "a low score" or "an out-of-range score"
-    that a warning can meaningfully describe -- it means something
-    upstream is broken (a corrupted embedding, a bad cache read), so
-    this raises immediately rather than silently fitting around it.
+    Always check ``warnings`` before trusting a threshold fitted on a
+    small or unfamiliar dataset.
+
+    Args:
+        similarities_correct: Cosine similarities for known-correct pairs.
+        similarities_wrong: Cosine similarities for known-wrong pairs.
+
+    Returns:
+        A :class:`CalibratedThreshold` with ``roc_auc`` set to ``None``.
+
+    Raises:
+        ValueError: If either list is empty, or if any score is NaN (a NaN
+            score indicates corrupted upstream input, such as a bad cached
+            embedding, and is never silently fitted around).
     """
     if not similarities_correct or not similarities_wrong:
         raise ValueError(
