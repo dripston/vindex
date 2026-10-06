@@ -3,34 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>vindex — Evals for Indian-language LLM apps</title>
-<meta name="description" content="Catch the failures English-only eval tools miss in Hindi, Hinglish and 8 other Indian scripts: wrong-script replies, misread terms, and judges that don't understand what they grade.">
-<meta property="og:title" content="vindex — Evals for Indian-language LLM apps">
+<title>vindex — Evals that can read Hindi</title>
+<meta name="description" content="vindex marks Indic and Hinglish LLM output the way a teacher who reads the language would: wrong script, misread words, answers that only look right.">
+<meta property="og:title" content="vindex — Evals that can read Hindi">
 <meta property="og:description" content="Script adherence, mistranslation checks, calibrated similarity and an Indic LLM judge. pip install vindex.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#07070a">
-<link rel="icon" href="favicon.svg?v=035b1e91" type="image/svg+xml">
+<meta name="theme-color" content="#f7f6f2">
+<link rel="icon" href="favicon.svg?v=8d80506e" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Gujarati:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&family=Noto+Sans+Oriya:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=035b1e91">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Kalam:wght@400;700&family=Noto+Sans+Devanagari:wght@400;500;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Bengali&family=Noto+Sans+Telugu&family=Noto+Sans+Kannada&family=Noto+Sans+Malayalam&family=Noto+Sans+Gujarati&family=Noto+Sans+Gurmukhi&family=Noto+Sans+Oriya&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=8d80506e">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="m-cross" viewBox="0 0 40 40"><path pathLength="1" d="M9 8 C 15 15, 24 24, 32 33"/><path pathLength="1" d="M31 7 C 24 15, 16 24, 8 34"/></symbol>
+    <symbol id="m-tick" viewBox="0 0 40 40"><path pathLength="1" d="M5 22 C 9 25, 12 29, 15 34 C 20 22, 27 12, 36 4"/></symbol>
+    <symbol id="m-circle" viewBox="0 0 100 40" preserveAspectRatio="none"><path pathLength="1" vector-effect="non-scaling-stroke" d="M9 21 C 6 9, 38 3, 62 4 C 90 6, 100 15, 96 25 C 92 35, 56 38, 31 36 C 10 34, 1 27, 8 16 C 13 9, 27 6, 41 6"/></symbol>
+    <symbol id="m-under" viewBox="0 0 100 10" preserveAspectRatio="none"><path pathLength="1" vector-effect="non-scaling-stroke" d="M1 5 C 25 2, 50 8, 99 4"/></symbol>
+  </defs>
+</svg>
+
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg?v=035b1e91" alt="">vindex</a>
+    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg?v=8d80506e" alt="">vindex</a>
     <nav class="nav-links" aria-label="Primary">
-      <a href="#features">Features</a>
-      <a href="#playground">Playground</a>
-      <a href="#workflow">CLI &amp; CI</a>
+      <a href="#mistakes">What it catches</a>
+      <a href="#try">Try it</a>
+      <a href="#ci">CLI &amp; CI</a>
       <a href="docs.html">Docs</a>
     </nav>
     <div class="nav-right">
       <a class="icon-btn" href="https://github.com/dripston/vindex" aria-label="GitHub">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
       </a>
-      <a class="btn btn-primary btn-sm nav-cta" href="docs.html#quickstart">Get started</a>
+      <a class="btn btn-primary btn-sm nav-cta" href="docs.html#quickstart">Docs</a>
     </div>
   </div>
 </header>
@@ -38,124 +47,128 @@
 <main>
   <!-- HERO -->
   <section class="hero">
-    <div class="wrap">
-      <a class="pill" href="docs.html#cli"><b>v0.6</b> New CLI — gate your CI on Indic evals <span aria-hidden="true">→</span></a>
-      <h1>Evals that actually read <span class="cycle"><span class="cycle-word grad-text" id="cycle">Hinglish.</span></span></h1>
-      <p class="lede">Your English eval suite can't tell when your bot answers a Hinglish user in Devanagari, or when your LLM judge misreads the Hindi it's grading. vindex can. Two of its four checks need no LLM and no API key.</p>
-      <div class="hero-actions">
-        <span class="install"><span><span class="dollar">$ </span>pip install vindex</span><button class="copy" type="button" data-copy="pip install vindex"></button></span>
-        <a class="btn btn-primary" href="docs.html">Read the docs
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <div class="wrap hero-grid">
+      <div>
+        <div class="kicker">pip install vindex · v0.6</div>
+        <h1 style="margin-top:18px">Your model speaks Hindi.<br><span class="pen">Your evals don't.</span></h1>
+        <p class="lede">vindex marks Indic LLM output the way a teacher who reads the language would: wrong script, misread words, answers that only look right. Then it fails your build.</p>
+        <div class="actions">
+          <span class="install"><span><span class="dollar">$ </span>pip install vindex</span><button class="copy" type="button" data-copy="pip install vindex"></button></span>
+          <a class="btn btn-primary" href="docs.html#quickstart">Read the docs</a>
+        </div>
+        <p class="hero-foot"><b>Hindi, Hinglish</b> and 8 more Indian scripts · two checks need no LLM and no API key</p>
       </div>
-      <div class="hero-shot reveal">
-        <div class="term" aria-label="Example vindex CLI output">
-          <div class="term-bar"><i></i><i></i><i></i><span>support-bot — vindex run</span></div>
-          <pre id="term-body"></pre>
+
+      <div class="sheet reveal" aria-label="An answer sheet marked by vindex">
+        <div class="score">1/2</div>
+        <div class="sheet-head"><span>Name: support-bot</span><span>Subject: Hindi</span></div>
+        <div class="q">
+          <span class="q-no">Q1.</span><span class="q-text">Mumbai kahan hai?</span>
+        </div>
+        <div class="q">
+          <svg class="margin-mark draw" aria-hidden="true"><use href="#m-cross"/></svg>
+          <span class="a-text" lang="hi">मुंबई महाराष्ट्र में है।<svg class="mark circle-mark draw" aria-hidden="true"><use href="#m-circle"/></svg></span>
+        </div>
+        <div class="note indent">wrong script — user typed in Roman</div>
+        <div class="machine">script_adherence → <b>script_mismatch</b></div>
+        <div class="q" style="margin-top:0">
+          <span class="q-no">Q2.</span><span class="q-text dev" lang="hi">भारत की राजधानी क्या है?</span>
+        </div>
+        <div class="q">
+          <svg class="margin-mark draw" aria-hidden="true"><use href="#m-tick"/></svg>
+          <span class="a-text" lang="hi">भारत की राजधानी नई दिल्ली है।</span>
+        </div>
+        <div class="machine">script_adherence → <span class="ok">matched</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISTAKES -->
+  <section id="mistakes" class="rule-top">
+    <div class="wrap">
+      <div class="head reveal">
+        <div class="kicker">What it catches</div>
+        <h2>Mistakes an English eval marks correct.</h2>
+        <p>Whoever reviews your outputs probably reads Hindi, so these look fine. They aren't — for the user, or for the judge doing the grading.</p>
+      </div>
+      <div class="sheet mistakes reveal">
+        <div class="mistake">
+          <div class="q"><span class="q-no">Q3.</span><span class="q-text dev" lang="hi">समुद्र तल पर पानी किस तापमान पर उबलता है?</span></div>
+          <div class="q">
+            <svg class="margin-mark draw" aria-hidden="true"><use href="#m-cross"/></svg>
+            <span>LLM judge: “the boiling point at the <span style="position:relative;display:inline-block">sea floor<svg class="mark draw" style="left:-2px;right:-2px;bottom:4px;width:calc(100% + 4px);height:8px" aria-hidden="true"><use href="#m-under"/></svg></span> is…”</span>
+          </div>
+          <div class="note indent"><span lang="hi">समुद्र तल</span> = sea <u>level</u>. A correct answer was about to get 0.</div>
+          <div class="machine">check_trace → <b>misread_detected</b> · free, no LLM</div>
+        </div>
+        <div class="mistake">
+          <div class="q"><span class="q-no">Q4.</span><span class="q-text">Paisa kab refund hoga?</span></div>
+          <div class="q">
+            <svg class="margin-mark draw" aria-hidden="true"><use href="#m-cross"/></svg>
+            <span class="a-text" style="font-family:var(--sans);font-size:18px">Your refund will arrive in 5–7 days.<svg class="mark circle-mark draw" aria-hidden="true"><use href="#m-circle"/></svg></span>
+          </div>
+          <div class="note indent">asked in Hinglish, answered in English</div>
+          <div class="machine">script_adherence(strict_language_check=True) → <b>language_mismatch</b></div>
+        </div>
+        <div class="mistake">
+          <div class="q"><span class="q-no">Q5.</span><span class="q-text">Is this answer close to the gold one?</span></div>
+          <div class="q">
+            <svg class="margin-mark draw" aria-hidden="true"><use href="#m-cross"/></svg>
+            <span>MuRIL similarity: right answer <b>0.99</b> · wrong answer <b>0.99</b></span>
+          </div>
+          <div class="note indent">this encoder can't tell them apart — don't trust its score</div>
+          <div class="machine">calibrated_similarity → <b>low_discrimination</b></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- STRIP -->
-  <div class="strip">
+  <!-- CHECKS -->
+  <section id="checks" class="rule-top">
     <div class="wrap">
-      <p>Plugs into the tools you already use</p>
-      <div class="strip-row">
-        <span>pytest</span><span>GitHub Actions</span><span>DeepEval</span><span>promptfoo</span><span>Ragas</span><span>OpenAI</span><span>Anthropic</span><span>Groq</span><span>LiteLLM</span>
+      <div class="head reveal">
+        <div class="kicker">Four checks</div>
+        <h2>Start free. Add a judge when you need one.</h2>
+        <p>Every check returns the same result: a score, pass or fail, a stable label to branch on, and one sentence saying why.</p>
       </div>
-    </div>
-  </div>
-
-  <!-- FEATURES / BENTO -->
-  <section id="features">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow-label">Four checks</span>
-        <h2>Catch what English evals<br><span class="dim">can't see.</span></h2>
-      </div>
-      <div class="bento">
-        <article class="cell c-4 reveal">
-          <div class="tags"><span class="tag free">free</span><span class="tag">no LLM</span><span class="tag">no reference</span></div>
-          <h3><code>script_adherence</code></h3>
-          <p>Did the reply come back in the script the user typed in? Flags Devanagari answers to Hinglish questions, English answers to Tamil ones, and emoji-only non-answers.</p>
-          <div class="visual">
-            <div class="chat">
-              <div class="bubble u">Mumbai kahan hai?</div>
-              <div class="bubble b" lang="hi">मुंबई महाराष्ट्र में है।</div>
-              <div class="verdict"><span class="badge">FAIL</span>script_mismatch · prompt is code-mixed; response in devanagari</div>
-            </div>
-          </div>
-        </article>
-        <article class="cell c-2 reveal">
-          <div class="tags"><span class="tag">pass rate</span></div>
-          <h3>One prompt line</h3>
-          <p>A model told to “reply in the user's language” answered 4 of 5 Hinglish questions in Devanagari. A stricter line fixed it.</p>
-          <div class="visual">
-            <div class="stat"><span class="from">Hinglish script adherence: 20% →</span><span class="to grad-text">100%</span></div>
-          </div>
-        </article>
-        <article class="cell c-3 reveal">
-          <div class="tags"><span class="tag free">free</span><span class="tag">deterministic</span><span class="tag">any judge</span></div>
-          <h3><code>check_trace</code></h3>
-          <p>Reads your LLM judge's reasoning and flags it when it misread an ambiguous Hindi term. 69 terms built in; bring your own.</p>
-          <div class="visual">
-            <div class="trace">
-              <div class="src" lang="hi">समुद्र तल पर पानी किस तापमान पर उबलता है?</div>
-              <div>judge: “boiling point at the <mark>sea floor</mark>…”</div>
-              <div>means: <ins>sea level</ins></div>
-            </div>
-            <div class="verdict" style="margin-top:12px"><span class="badge">FAIL</span>misread_detected · समुद्र तल</div>
-          </div>
-        </article>
-        <article class="cell c-3 reveal">
-          <div class="tags"><span class="tag">local encoder</span><span class="tag">needs gold</span></div>
-          <h3><code>calibrated_similarity</code></h3>
-          <p>Thresholds calibrated per encoder and language. Where an encoder can't separate right from wrong, you get <code>low_discrimination</code>, not a fake pass.</p>
-          <div class="visual">
-            <div class="auc">
-              <div class="auc-row"><span>mpnet-v2 · en</span><span class="track"><i style="width:93%"></i></span><b>0.93</b></div>
-              <div class="auc-row"><span>e5-base · en</span><span class="track"><i style="width:86%"></i></span><b>0.86</b></div>
-              <div class="auc-row"><span>MiniLM · hinglish</span><span class="track"><i style="width:75%"></i></span><b>0.75</b></div>
-              <div class="auc-row bad"><span>e5-base · hi</span><span class="track"><i style="width:50%"></i></span><b>0.50</b></div>
-              <div class="auc-row bad"><span>MuRIL · hi</span><span class="track"><i style="width:11%"></i></span><b>0.11</b></div>
-            </div>
-            <div class="auc-note">ROC AUC, correct vs. wrong answers. 0.5 is a coin flip.</div>
-          </div>
-        </article>
-        <article class="cell c-3 reveal">
-          <div class="tags"><span class="tag">LLM judge</span><span class="tag">reference-free</span><span class="tag">temperature 0</span></div>
-          <h3><code>indic_judge</code></h3>
-          <p>A Hindi rubric that knows Romanized Hindi isn't an error. Conservative by default, and the exact judge model is stamped on every result.</p>
-          <div class="visual">
-            <div class="providers"><span>Groq</span><span>OpenAI</span><span>Anthropic</span><span>Gemini</span><span>Bedrock</span><span>Ollama</span><span class="more">+100 via LiteLLM</span></div>
-          </div>
-        </article>
-        <article class="cell c-3 reveal">
-          <div class="tags"><span class="tag">CLI</span><span class="tag">exit codes</span></div>
-          <h3>Blocks the bad PR</h3>
-          <p><code>vindex run</code> fails the build when a pass rate drops, and writes the report into the job summary.</p>
-          <div class="visual">
-            <div class="checks">
-              <div><span class="dot ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M20 6 9 17l-5-5"/></svg></span>tests / unit<small>42s</small></div>
-              <div><span class="dot ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M20 6 9 17l-5-5"/></svg></span>evals / check_trace<small>100%</small></div>
-              <div><span class="dot no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M18 6 6 18M6 6l12 12"/></svg></span>evals / script_adherence<small>86.7% &lt; 95%</small></div>
-            </div>
-          </div>
-        </article>
-      </div>
+      <table class="card-table reveal">
+        <thead><tr><th>Check</th><th>What it marks wrong</th><th>Needs</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code class="fn">script_adherence</code></td>
+            <td><p>Replies in a different script from the question: Devanagari to a Hinglish user, English to a Tamil one, emoji instead of an answer.</p><code class="snippet">script_adherence(prompt, response)</code></td>
+            <td class="cost"><span class="free">free</span><br>no LLM, no gold</td>
+          </tr>
+          <tr>
+            <td><code class="fn">check_trace</code></td>
+            <td><p>An LLM judge's reasoning that misread an ambiguous Hindi term. 69 built in — <span lang="hi">समुद्र तल</span>, <span lang="hi">कल</span>, <span lang="hi">उत्तर</span> — and you can add your own.</p><code class="snippet">check_trace(question, judge_reasoning)</code></td>
+            <td class="cost"><span class="free">free</span><br>deterministic</td>
+          </tr>
+          <tr>
+            <td><code class="fn">calibrated_similarity</code></td>
+            <td><p>Answers that drift from the gold answer, with thresholds calibrated per encoder and language. Refuses to grade where the encoder can't discriminate.</p><code class="snippet">calibrated_similarity(gold, response, language="hi")</code></td>
+            <td class="cost">local encoder<br>gold answer</td>
+          </tr>
+          <tr>
+            <td><code class="fn">indic_judge</code></td>
+            <td><p>Wrong answers, judged with a Hindi rubric that accepts Romanized Hindi. Temperature 0, conservative, and the judge model is recorded in every result.</p><code class="snippet">indic_judge(question, answer, judge=OpenAIJudge())</code></td>
+            <td class="cost">LLM API key<br>Groq · OpenAI · Anthropic · LiteLLM</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
-  <!-- PLAYGROUND -->
-  <section id="playground" style="padding-top:40px">
+  <!-- TRY -->
+  <section id="try" class="rule-top">
     <div class="wrap">
-      <div class="section-head center reveal">
-        <span class="eyebrow-label">Playground</span>
-        <h2>Try it. Right here.</h2>
-        <p><code>script_adherence</code> running in your browser — same rules as the Python package.</p>
+      <div class="head reveal">
+        <div class="kicker">Try it</div>
+        <h2>Write a question. Write an answer. Get it marked.</h2>
+        <p>This is <code>script_adherence</code> running in your browser, with the same rules as the Python package. Nothing leaves the page.</p>
       </div>
-      <div class="play reveal">
-        <div class="play-in">
+      <div class="play reveal" id="playground">
+        <div>
           <div class="presets" role="group" aria-label="Examples">
             <button type="button" class="on" data-p="Mumbai kahan hai?" data-r="मुंबई महाराष्ट्र में है।">Hinglish → Devanagari</button>
             <button type="button" data-p="Mera order kab aayega?" data-r="Aapka order kal tak deliver ho jayega.">Hinglish → Hinglish</button>
@@ -165,88 +178,72 @@
             <button type="button" data-p="Kitne log rehte hai Delhi mein?" data-r="३२०००००० 🙂">Digits only</button>
           </div>
           <div class="field">
-            <label for="pg-prompt">prompt <span id="pg-p-script"></span></label>
+            <label for="pg-prompt">question <span id="pg-p-script"></span></label>
             <textarea id="pg-prompt" spellcheck="false">Mumbai kahan hai?</textarea>
           </div>
           <div class="field">
-            <label for="pg-response">response <span id="pg-r-script"></span></label>
+            <label for="pg-response">answer <span id="pg-r-script"></span></label>
             <textarea id="pg-response" spellcheck="false">मुंबई महाराष्ट्र में है।</textarea>
           </div>
-          <label class="toggle"><input type="checkbox" id="pg-strict"> <span><code>strict_language_check</code> — also fail English replies to Hinglish</span></label>
+          <label class="toggle"><input type="checkbox" id="pg-strict"><span><code>strict_language_check</code> — also mark English answers to Hinglish questions wrong</span></label>
         </div>
-        <div class="play-out" aria-live="polite">
-          <div class="result-head">
-            <span id="pg-verdict" class="big-verdict fail">FAIL</span>
-            <span id="pg-label" class="result-label">script_mismatch</span>
-          </div>
-          <p id="pg-reason" class="result-reason"></p>
-          <div class="bars">
-            <div><h4>prompt scripts</h4><div class="bar" id="pg-p-bar"></div><div class="legend" id="pg-p-legend"></div></div>
-            <div><h4>response scripts</h4><div class="bar" id="pg-r-bar"></div><div class="legend" id="pg-r-legend"></div></div>
-          </div>
-          <div class="code-out" id="pg-code"></div>
+        <div class="sheet" aria-live="polite">
+          <div class="sheet-head"><span>Marked by vindex</span><span id="pg-score"></span></div>
+          <div class="q"><span class="q-no">Q.</span><span class="q-text" id="pg-q"></span></div>
+          <div class="q pg-row"><span class="q-no">A.</span><span class="a-text" id="pg-a"></span></div>
+          <div class="pg-verdict" id="pg-verdict"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#m-cross"/></svg><span class="hand" id="pg-word">wrong</span></div>
+          <div class="note" id="pg-reason"></div>
+          <div class="pg-out-machine">label → <b class="pen" id="pg-label"></b></div>
         </div>
       </div>
-      <p class="play-note">No network calls. Nothing you type leaves your browser.</p>
     </div>
   </section>
 
-  <!-- SCRIPTS -->
-  <div class="marquee reveal" aria-label="Supported scripts">
-    <div class="marquee-track">
-      <span lang="hi">देवनागरी <small>Devanagari</small></span>
-      <span lang="bn">বাংলা <small>Bengali</small></span>
-      <span lang="ta">தமிழ் <small>Tamil</small></span>
-      <span lang="te">తెలుగు <small>Telugu</small></span>
-      <span lang="kn">ಕನ್ನಡ <small>Kannada</small></span>
-      <span lang="ml">മലയാളം <small>Malayalam</small></span>
-      <span lang="gu">ગુજરાતી <small>Gujarati</small></span>
-      <span lang="pa">ਗੁਰਮੁਖੀ <small>Gurmukhi</small></span>
-      <span lang="or">ଓଡ଼ିଆ <small>Odia</small></span>
-      <span>Hinglish <small>Roman</small></span>
-    </div>
-  </div>
-
-  <!-- WORKFLOW -->
-  <section id="workflow">
+  <!-- CLI / CI -->
+  <section id="ci" class="rule-top">
     <div class="wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow-label">Workflow</span>
-        <h2>One command in CI.<br><span class="dim">One line in your test suite.</span></h2>
-        <p>Point <code>vindex run</code> at a JSONL, JSON or CSV export. Column names from DeepEval, promptfoo and Ragas just work.</p>
+      <div class="head reveal">
+        <div class="kicker">CLI &amp; CI</div>
+        <h2>Mark a whole dataset. Fail the PR if it slips.</h2>
       </div>
-      <div class="tabs reveal" data-tabs>
-        <div class="tablist" role="tablist" aria-label="Integrations">
-          <button role="tab" aria-selected="true" aria-controls="tab-cli" id="t-cli">CLI</button>
-          <button role="tab" aria-selected="false" aria-controls="tab-gha" id="t-gha" tabindex="-1">GitHub Actions</button>
-          <button role="tab" aria-selected="false" aria-controls="tab-py" id="t-py" tabindex="-1">pytest</button>
-          <button role="tab" aria-selected="false" aria-controls="tab-de" id="t-de" tabindex="-1">DeepEval</button>
-          <button role="tab" aria-selected="false" aria-controls="tab-pf" id="t-pf" tabindex="-1">promptfoo</button>
-          <button role="tab" aria-selected="false" aria-controls="tab-judge" id="t-judge" tabindex="-1">Judges</button>
-        </div>
-<div class="tabpanel" role="tabpanel" id="tab-cli" aria-labelledby="t-cli"><pre data-copyable><span class="c"># cases.jsonl — one object per line</span>
-<span class="c"># {"prompt": "Mumbai kahan hai?", "response": "...", "gold": "...", "trace": "..."}</span>
+      <div class="cli-grid">
+        <div class="code reveal" data-tabs>
+          <div class="code-bar" role="tablist" aria-label="Examples">
+            <button role="tab" aria-selected="true" aria-controls="tab-run" id="t-run">vindex run</button>
+            <button role="tab" aria-selected="false" aria-controls="tab-gha" id="t-gha" tabindex="-1">GitHub Actions</button>
+            <button role="tab" aria-selected="false" aria-controls="tab-py" id="t-py" tabindex="-1">pytest</button>
+            <button role="tab" aria-selected="false" aria-controls="tab-judge" id="t-judge" tabindex="-1">Judges</button>
+          </div>
+<div class="tabpanel" role="tabpanel" id="tab-run" aria-labelledby="t-run"><pre><span class="p">$</span> vindex run examples/cases.jsonl
 
-<span class="p">$</span> vindex run cases.jsonl                    <span class="c"># script_adherence (+ check_trace on rows with a trace)</span>
-<span class="p">$</span> vindex run cases.jsonl -m script,judge    <span class="c"># add the LLM judge</span>
-<span class="p">$</span> vindex run cases.jsonl --fail-under 0.95 -o report.json
-<span class="p">$</span> vindex run cases.csv -f markdown &gt; report.md
+  <span class="p">vindex</span> <span class="d">0.6.0</span>  <span class="b">cases.jsonl</span> <span class="d">· 6 cases</span>
 
-<span class="p">$</span> vindex check <span class="s">"Mumbai kahan hai?"</span> <span class="s">"मुंबई महाराष्ट्र में है।"</span>
-<span class="p">$</span> vindex detect <span class="s">"Kal office aa raha hai kya?"</span></pre></div>
+  <span class="r">✗</span> script_adherence   <span class="tbar"><i style="width:83.3%"></i></span>  <span class="b">83.3%</span>  <span class="d">5/6 passed</span>
+  <span class="r">✗</span> check_trace        <span class="tbar"><i style="width:0"></i></span>   <span class="b">0.0%</span>  <span class="d">0/1 passed, 5 skipped</span>
+
+  <span class="b">Failures</span>
+
+  <span class="r">●</span> <span class="b">mumbai-devanagari-reply</span> <span class="d">·</span> script_adherence <span class="d">·</span> <span class="y">script_mismatch</span>
+    <span class="d">prompt  </span> Mumbai kahan hai?
+    <span class="d">response</span> मुंबई महाराष्ट्र में है।
+    <span class="d">reason  </span> prompt is code-mixed; response in devanagari, not Roman script.
+
+  <span class="r">●</span> <span class="b">boiling-hindi-trace</span> <span class="d">·</span> check_trace <span class="d">·</span> <span class="y">misread_detected</span>
+    <span class="d">prompt  </span> समुद्र तल पर पानी किस तापमान पर उबलता है?
+    <span class="d">reason  </span> trace appears to misread 1 known ambiguous term(s): समुद्र तल.
+
+  <span class="r">FAILED</span> script_adherence, check_trace below 100%</pre></div>
 <div class="tabpanel" role="tabpanel" id="tab-gha" aria-labelledby="t-gha" hidden><pre data-copyable><span class="c"># .github/workflows/evals.yml</span>
-<span class="k">name</span>: evals
 <span class="k">on</span>: [pull_request]
 <span class="k">jobs</span>:
-  <span class="k">indic</span>:
+  <span class="k">indic-evals</span>:
     <span class="k">runs-on</span>: ubuntu-latest
     <span class="k">steps</span>:
       - <span class="k">uses</span>: actions/checkout@v4
       - <span class="k">uses</span>: actions/setup-python@v5
         <span class="k">with</span>: { <span class="k">python-version</span>: <span class="s">"3.12"</span> }
       - <span class="k">run</span>: pip install vindex
-      - <span class="k">run</span>: vindex run evals/cases.jsonl --fail-under 0.95
-        <span class="c"># a markdown report is added to the job summary automatically</span></pre></div>
+      - <span class="k">run</span>: vindex run evals/cases.jsonl --fail-under 0.95</pre></div>
 <div class="tabpanel" role="tabpanel" id="tab-py" aria-labelledby="t-py" hidden><pre data-copyable><span class="k">import</span> pytest
 <span class="k">from</span> vindex <span class="k">import</span> script_adherence
 
@@ -255,47 +252,69 @@
     <span class="s">"मेरा रिफंड कब आएगा?"</span>,
     <span class="s">"என் பணம் எப்போது திரும்ப வரும்?"</span>,
 ])
-<span class="k">def</span> <span class="f">test_bot_replies_in_users_script</span>(bot, prompt):
+<span class="k">def</span> <span class="f">test_replies_in_users_script</span>(bot, prompt):
     result = script_adherence(prompt, bot(prompt))
     <span class="k">assert</span> result.passed, result.reason</pre></div>
-<div class="tabpanel" role="tabpanel" id="tab-de" aria-labelledby="t-de" hidden><pre data-copyable><span class="c"># examples/integrations/deepeval_vindex.py</span>
-<span class="k">from</span> deepeval <span class="k">import</span> evaluate
-<span class="k">from</span> deepeval.test_case <span class="k">import</span> LLMTestCase
-<span class="k">from</span> deepeval_vindex <span class="k">import</span> ScriptAdherenceMetric
-
-case = LLMTestCase(
-    input=<span class="s">"Mumbai kahan hai?"</span>,
-    actual_output=<span class="s">"Mumbai Maharashtra ki rajdhani hai."</span>,
-)
-evaluate([case], [ScriptAdherenceMetric()])</pre></div>
-<div class="tabpanel" role="tabpanel" id="tab-pf" aria-labelledby="t-pf" hidden><pre data-copyable><span class="c"># promptfooconfig.yaml</span>
-<span class="k">tests</span>:
-  - <span class="k">vars</span>: { <span class="k">question</span>: <span class="s">"Mumbai kahan hai?"</span> }
-    <span class="k">assert</span>:
-      - <span class="k">type</span>: python
-        <span class="k">value</span>: file://promptfoo_vindex.py</pre></div>
 <div class="tabpanel" role="tabpanel" id="tab-judge" aria-labelledby="t-judge" hidden><pre data-copyable><span class="k">from</span> vindex <span class="k">import</span> indic_judge
 <span class="k">from</span> vindex.judge_model <span class="k">import</span> OpenAIJudge, AnthropicJudge, LiteLLMJudge
 
-indic_judge(q, a)                                        <span class="c"># Groq, openai/gpt-oss-120b (default)</span>
+indic_judge(q, a)                                        <span class="c"># Groq, openai/gpt-oss-120b</span>
 indic_judge(q, a, judge=OpenAIJudge(<span class="s">"gpt-4o"</span>))
 indic_judge(q, a, judge=AnthropicJudge())
 indic_judge(q, a, judge=LiteLLMJudge(<span class="s">"gemini/gemini-1.5-pro"</span>))
 
-<span class="c"># from the CLI</span>
-<span class="p">$</span> vindex run cases.jsonl -m judge --judge anthropic:claude-sonnet-4-5</pre></div>
+<span class="c"># or from the CLI</span>
+<span class="p">$</span> vindex run cases.jsonl -m judge --judge anthropic</pre></div>
+        </div>
+        <div class="cli-notes reveal">
+          <div>
+            <h3>Reads the exports you already have</h3>
+            <p>JSONL, JSON or CSV. Columns like <code>input</code>, <code>actual_output</code> and <code>expected_output</code> from DeepEval, promptfoo and Ragas work without renaming.</p>
+          </div>
+          <div>
+            <h3>Fails the build, not silently</h3>
+            <p>Exits 1 when any check's pass rate is under <code>--fail-under</code>. Skipped rows are counted, never passed.</p>
+          </div>
+          <div>
+            <h3>Reports where you look</h3>
+            <p>Terminal, JSON or markdown — and a summary in the GitHub Actions run, automatically.</p>
+          </div>
+          <div>
+            <h3>Plugs into your test suite</h3>
+            <p>Ready adapters for DeepEval, promptfoo and Ragas in <a href="https://github.com/dripston/vindex/tree/master/examples/integrations">examples/</a>, or call it straight from pytest.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta">
+  <!-- SCRIPTS -->
+  <section class="rule-top" style="padding:64px 0">
     <div class="wrap">
-      <h2>Ship to Bharat with<br><span class="grad-text">evals that can read.</span></h2>
-      <div class="deva" lang="hi">मापो, मानो मत — measure, don't assume.</div>
-      <div class="hero-actions">
+      <div class="kicker" style="margin-bottom:20px">Reads</div>
+      <div class="scripts">
+        <span lang="hi">देवनागरी<small>Devanagari</small></span>
+        <span>Hinglish<small>Roman</small></span>
+        <span lang="bn">বাংলা<small>Bengali</small></span>
+        <span lang="ta">தமிழ்<small>Tamil</small></span>
+        <span lang="te">తెలుగు<small>Telugu</small></span>
+        <span lang="kn">ಕನ್ನಡ<small>Kannada</small></span>
+        <span lang="ml">മലയാളം<small>Malayalam</small></span>
+        <span lang="gu">ગુજરાતી<small>Gujarati</small></span>
+        <span lang="pa">ਗੁਰਮੁਖੀ<small>Gurmukhi</small></span>
+        <span lang="or">ଓଡ଼ିଆ<small>Odia</small></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="closing rule-top">
+    <div class="wrap">
+      <h2>Measure. Don't assume.</h2>
+      <span class="hand" lang="hi">मापो, मानो मत।</span>
+      <div class="actions">
         <span class="install"><span><span class="dollar">$ </span>pip install vindex</span><button class="copy" type="button" data-copy="pip install vindex"></button></span>
-        <a class="btn btn-ghost" href="https://github.com/dripston/vindex">Star on GitHub</a>
+        <a class="btn btn-line" href="https://github.com/dripston/vindex">GitHub</a>
       </div>
     </div>
   </section>
@@ -303,7 +322,7 @@ indic_judge(q, a, judge=LiteLLMJudge(<span class="s">"gemini/gemini-1.5-pro"</sp
 
 <footer>
   <div class="wrap">
-    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg?v=035b1e91" alt="">vindex</a>
+    <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg?v=8d80506e" alt="">vindex</a>
     <nav aria-label="Footer">
       <a href="docs.html">Docs</a>
       <a href="https://github.com/dripston/vindex">GitHub</a>
@@ -315,6 +334,6 @@ indic_judge(q, a, judge=LiteLLMJudge(<span class="s">"gemini/gemini-1.5-pro"</sp
   </div>
 </footer>
 
-<script src="assets/site.js?v=035b1e91"></script>
+<script src="assets/site.js?v=8d80506e"></script>
 </body>
 </html>

@@ -5,21 +5,19 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ---------------- theme ---------------- */
-  const root = document.documentElement;
-  try {
-    const saved = localStorage.getItem("vindex-theme");
-    if (saved) root.dataset.theme = saved;
-  } catch (_) {}
-  $$("[data-theme-toggle]").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      const dark = root.dataset.theme
-        ? root.dataset.theme === "dark"
-        : matchMedia("(prefers-color-scheme: dark)").matches;
-      root.dataset.theme = dark ? "light" : "dark";
-      try { localStorage.setItem("vindex-theme", root.dataset.theme); } catch (_) {}
-    })
-  );
+  /* ---------------- red-pen marks: inline the <symbol>s so strokes can animate ---------------- */
+  const inlineMarks = (root = document) => {
+    $$("svg > use", root).forEach((use) => {
+      const sym = document.querySelector(use.getAttribute("href"));
+      const svg = use.parentNode;
+      if (!sym) return;
+      svg.setAttribute("viewBox", sym.getAttribute("viewBox"));
+      const par = sym.getAttribute("preserveAspectRatio");
+      if (par) svg.setAttribute("preserveAspectRatio", par);
+      svg.innerHTML = sym.innerHTML;
+    });
+  };
+  inlineMarks();
 
   /* ---------------- nav ---------------- */
   const nav = $(".nav");
@@ -47,7 +45,6 @@
     btn.setAttribute("aria-label", "Copy");
     btn.addEventListener("click", () => copyText(btn.dataset.copy, btn));
   });
-  // Copy buttons on every <pre> in docs/tabs.
   $$("pre[data-copyable]").forEach((pre) => {
     const btn = document.createElement("button");
     btn.className = "copy"; btn.type = "button"; btn.innerHTML = ICON_COPY; btn.setAttribute("aria-label", "Copy code");
@@ -55,32 +52,11 @@
     pre.appendChild(btn);
   });
 
-  /* ---------------- kolam ornament ---------------- */
-  // A pulli kolam: dot grid with a single looping line woven around it.
-  const kolam = (n = 7, step = 100) => {
-    const size = n * step, c = size / 2, r = step / 2;
-    let dots = "", loops = "";
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      const x = r + i * step, y = r + j * step;
-      const d = Math.abs(x - c) + Math.abs(y - c);
-      if (d > c) continue;
-      dots += `<circle cx="${x}" cy="${y}" r="5"/>`;
-      loops += `<rect x="${x - r * .72}" y="${y - r * .72}" width="${r * 1.44}" height="${r * 1.44}" rx="${r * .3}" transform="rotate(45 ${x} ${y})"/>`;
-    }
-    const petals = Array.from({ length: 16 }, (_, k) =>
-      `<ellipse cx="${c}" cy="${c - size * .44}" rx="${step * .32}" ry="${step * .9}" transform="rotate(${k * 22.5} ${c} ${c})"/>`).join("");
-    return `<svg viewBox="0 0 ${size} ${size}" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-      <g fill="currentColor" stroke="none">${dots}</g><g>${loops}</g>
-      <circle cx="${c}" cy="${c}" r="${size * .47}" /><circle cx="${c}" cy="${c}" r="${size * .49}" stroke-dasharray="2 10"/>
-      <g opacity=".7">${petals}</g></svg>`;
-  };
-  $$("[data-kolam]").forEach((el) => { el.innerHTML = kolam(+el.dataset.kolam || 7); });
-
-  /* ---------------- reveal on scroll ---------------- */
+  /* ---------------- reveal (also triggers the pen strokes) ---------------- */
   if ("IntersectionObserver" in window && !reduced) {
     const io = new IntersectionObserver((entries) => entries.forEach((e) => {
       if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-    }), { rootMargin: "0px 0px -8% 0px" });
+    }), { rootMargin: "0px 0px -12% 0px" });
     $$(".reveal").forEach((el) => io.observe(el));
   } else {
     $$(".reveal").forEach((el) => el.classList.add("in"));
@@ -89,14 +65,12 @@
   /* ---------------- tabs ---------------- */
   $$("[data-tabs]").forEach((tabs) => {
     const buttons = $$('[role="tab"]', tabs);
-    const select = (btn) => {
-      buttons.forEach((b) => {
-        const on = b === btn;
-        b.setAttribute("aria-selected", on);
-        b.tabIndex = on ? 0 : -1;
-        $("#" + b.getAttribute("aria-controls")).hidden = !on;
-      });
-    };
+    const select = (btn) => buttons.forEach((b) => {
+      const on = b === btn;
+      b.setAttribute("aria-selected", on);
+      b.tabIndex = on ? 0 : -1;
+      $("#" + b.getAttribute("aria-controls")).hidden = !on;
+    });
     buttons.forEach((b, i) => {
       b.addEventListener("click", () => select(b));
       b.addEventListener("keydown", (e) => {
@@ -108,69 +82,14 @@
     });
   });
 
-  /* ---------------- hero terminal ---------------- */
-  const term = $("#term-body");
-  if (term) {
-    const bar = (pct, cls) => `<span class="tbar ${cls}"><i style="width:${pct}%"></i></span>`;
-    const lines = [
-      ["cmd", "vindex run evals/support_bot.jsonl --fail-under 0.95"],
-      ["", ""],
-      ["", '  <span class="p">vindex</span> <span class="d">0.6.0</span>  <span class="b">support_bot.jsonl</span> <span class="d">· 240 cases</span>'],
-      ["", ""],
-      ["", `  <span class="r">✗</span> script_adherence   ${bar(86.7, "warn")}  <span class="b"> 86.7%</span>  <span class="d">208/240 passed</span>`],
-      ["", `  <span class="g">✓</span> check_trace        ${bar(100, "ok")}  <span class="b">100.0%</span>  <span class="d">64/64 passed</span>`],
-      ["", `  <span class="g">✓</span> indic_judge        ${bar(96.3, "ok")}  <span class="b"> 96.3%</span>  <span class="d">231/240 passed</span>`],
-      ["", ""],
-      ["", '  <span class="b">Failures</span>'],
-      ["", ""],
-      ["", '  <span class="r">●</span> <span class="b">refund-017</span> <span class="d">·</span> script_adherence <span class="d">·</span> <span class="y">script_mismatch</span>'],
-      ["", '    <span class="d">prompt  </span> Mera refund kab tak aayega?'],
-      ["", '    <span class="d">response</span> आपका रिफंड 5-7 कार्यदिवसों में आ जाएगा।'],
-      ["", '    <span class="d">reason  </span> prompt is code-mixed; response in devanagari, not Roman script.'],
-      ["", '  <span class="d">  … 31 more</span>'],
-      ["", ""],
-      ["", '  <span class="r">FAILED</span> script_adherence below 95%'],
-    ];
-    const render = (upto, typed) => {
-      let html = "";
-      for (let i = 0; i < upto; i++) {
-        const [kind, text] = lines[i];
-        html += kind === "cmd" ? `<span class="p">$</span> ${text}\n` : `${text}\n`;
-      }
-      if (typed !== undefined) html += `<span class="p">$</span> ${typed}<span class="cursor"></span>`;
-      term.innerHTML = html;
-    };
-    if (reduced) { render(lines.length); term.innerHTML += '<span class="p">$</span> <span class="cursor"></span>'; }
-    else {
-      const cmd = lines[0][1];
-      let k = 0;
-      const typeCmd = () => {
-        render(0, cmd.slice(0, k));
-        if (k++ < cmd.length) setTimeout(typeCmd, 28 + Math.random() * 40);
-        else setTimeout(() => showLines(1), 380);
-      };
-      const showLines = (n) => {
-        render(n);
-        if (n < lines.length) setTimeout(() => showLines(n + 1), n < 3 ? 160 : 70);
-        else term.innerHTML += '<span class="p">$</span> <span class="cursor"></span>';
-      };
-      setTimeout(typeCmd, 500);
-    }
-  }
-
   /* ---------------- playground: JS port of vindex.script_adherence ---------------- */
   const SCRIPTS = {
     devanagari: [0x0900, 0x097f], bengali: [0x0980, 0x09ff], gurmukhi: [0x0a00, 0x0a7f],
     gujarati: [0x0a80, 0x0aff], odia: [0x0b00, 0x0b7f], tamil: [0x0b80, 0x0bff],
     telugu: [0x0c00, 0x0c7f], kannada: [0x0c80, 0x0cff], malayalam: [0x0d00, 0x0d7f],
   };
-  // Iteration order matches vindex.script.SCRIPT_RANGES (ties go to the earlier script).
+  // Same order as vindex.script.SCRIPT_RANGES (ties go to the earlier script).
   const ORDER = ["devanagari", "gurmukhi", "gujarati", "odia", "tamil", "telugu", "kannada", "malayalam", "bengali"];
-  const COLORS = {
-    roman: "#a1a1aa", devanagari: "#ff9933", bengali: "#ff5e62", gurmukhi: "#b48cff",
-    gujarati: "#3ddc97", odia: "#e0368a", tamil: "#7aa2ff", telugu: "#4fd1e8",
-    kannada: "#f5c451", malayalam: "#9be15d",
-  };
   const HINDI = new Set(["hai", "hain", "kya", "nahi", "mera", "aap", "ka", "ki", "ke", "se", "mein", "tha", "hoga", "raha"]);
 
   const scriptOf = (cp) => {
@@ -210,13 +129,13 @@
     if (l === "roman") return looksHinglish(prompt) ? "code-mixed" : "romanized";
     return "empty";
   };
-  const R = (passed, label, reason) => ({ passed, label, reason, score: passed ? 1 : 0 });
+  const R = (passed, label, reason) => ({ passed, label, reason });
   const scriptAdherence = (prompt, response, strict) => {
     const pl = classify(prompt), rl = classify(response);
     if (pl === "empty" || rl === "empty") return R(false, "empty", "prompt or response is empty.");
-    if (noSignal(prompt)) return R(false, "no_script_signal", "prompt has no alphabetic characters in any recognized script, so no script-adherence verdict can be made against it.");
+    if (noSignal(prompt)) return R(false, "no_script_signal", "prompt has no letters in any recognized script.");
     const bucket = bucketOf(prompt);
-    if (noSignal(response)) return R(false, "no_script_signal", "response has no alphabetic characters in any recognized script (e.g. emoji, digits, or punctuation only).");
+    if (noSignal(response)) return R(false, "no_script_signal", "response has no letters in any recognized script — only digits, emoji or punctuation.");
     if (bucket === "native-script") {
       if (rl === pl) return R(true, "matched", `prompt and response both in ${pl}.`);
       if (rl === "mixed") return R(true, "mixed", `prompt in ${pl}; response is code-mixed.`);
@@ -235,36 +154,22 @@
   const pg = $("#playground");
   if (pg) {
     const P = $("#pg-prompt"), A = $("#pg-response"), S = $("#pg-strict");
-    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    const py = (s) => JSON.stringify(s).slice(1, -1);
-    const barFor = (text) => {
-      const c = count(text);
-      const parts = [["roman", c.latin], ...ORDER.map((s) => [s, c[s]])].filter(([, v]) => v > 0);
-      const total = parts.reduce((a, [, v]) => a + v, 0) || 1;
-      return {
-        bar: parts.map(([k, v]) => `<i style="width:${(v / total) * 100}%;background:${COLORS[k]}"></i>`).join(""),
-        legend: parts.map(([k, v]) => `<span><b style="background:${COLORS[k]}"></b>${k} ${Math.round((v / total) * 100)}%</span>`).join(""),
-        label: classify(text),
-      };
-    };
+    const CROSS = '<path d="M9 8 C 15 15, 24 24, 32 33"/><path d="M31 7 C 24 15, 16 24, 8 34"/>';
+    const TICK = '<path d="M5 22 C 9 25, 12 29, 15 34 C 20 22, 27 12, 36 4"/>';
     const update = () => {
       const r = scriptAdherence(P.value, A.value, S.checked);
+      $("#pg-q").textContent = P.value || "—";
+      $("#pg-a").textContent = A.value || "—";
+      $("#pg-p-script").textContent = classify(P.value);
+      $("#pg-r-script").textContent = classify(A.value);
       const v = $("#pg-verdict");
-      v.textContent = r.passed ? "PASS" : "FAIL";
-      v.className = "big-verdict " + (r.passed ? "pass" : "fail");
-      $("#pg-label").textContent = r.label;
+      v.classList.toggle("pass", r.passed);
+      $("svg", v).innerHTML = r.passed ? TICK : CROSS;
+      $("#pg-word").textContent = r.passed ? "correct script" : "wrong";
       $("#pg-reason").textContent = r.reason;
-      [["p", P.value], ["r", A.value]].forEach(([k, t]) => {
-        const b = barFor(t);
-        $(`#pg-${k}-bar`).innerHTML = b.bar;
-        $(`#pg-${k}-legend`).innerHTML = b.legend;
-        $(`#pg-${k}-script`).textContent = b.label;
-      });
-      $("#pg-code").innerHTML =
-        `<span class="k">from</span> vindex <span class="k">import</span> script_adherence\n\n` +
-        `r = script_adherence(\n    <span class="s">"${esc(py(P.value))}"</span>,\n    <span class="s">"${esc(py(A.value))}"</span>,` +
-        (S.checked ? `\n    strict_language_check=<span class="n">True</span>,` : "") +
-        `\n)\nr.passed  <span class="c"># ${r.passed ? "True" : "False"}</span>\nr.label   <span class="c"># "${r.label}"</span>`;
+      $("#pg-label").textContent = r.label;
+      $("#pg-label").style.color = r.passed ? "var(--ok)" : "";
+      $("#pg-score").textContent = r.passed ? "1/1" : "0/1";
     };
     [P, A].forEach((el) => el.addEventListener("input", () => { $$(".presets button").forEach((b) => b.classList.remove("on")); update(); }));
     S.addEventListener("change", update);
@@ -275,28 +180,6 @@
     }));
     update();
   }
-
-
-  /* ---------------- hero word cycle ---------------- */
-  const cyc = $("#cycle");
-  if (cyc && !reduced) {
-    const words = ["Hinglish.", "हिंदी.", "தமிழ்.", "বাংলা.", "తెలుగు.", "ಕನ್ನಡ.", "मराठी.", "ગુજરાતી."];
-    let w = 0;
-    setInterval(() => {
-      cyc.classList.add("out");
-      setTimeout(() => { w = (w + 1) % words.length; cyc.textContent = words[w]; cyc.classList.remove("out"); }, 350);
-    }, 2400);
-  }
-
-  /* ---------------- bento hover glow ---------------- */
-  $$(".cell").forEach((c) => c.addEventListener("pointermove", (e) => {
-    const r = c.getBoundingClientRect();
-    c.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    c.style.setProperty("--my", `${e.clientY - r.top}px`);
-  }));
-
-  /* ---------------- marquee: duplicate for a seamless loop ---------------- */
-  $$(".marquee-track").forEach((t) => { t.innerHTML += t.innerHTML; });
 
   /* ---------------- docs scrollspy ---------------- */
   const side = $(".sidebar");
