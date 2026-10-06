@@ -111,22 +111,22 @@
   /* ---------------- hero terminal ---------------- */
   const term = $("#term-body");
   if (term) {
+    const bar = (pct, cls) => `<span class="tbar ${cls}"><i style="width:${pct}%"></i></span>`;
     const lines = [
-      ["cmd", "vindex run evals/support_bot.jsonl"],
+      ["cmd", "vindex run evals/support_bot.jsonl --fail-under 0.95"],
       ["", ""],
       ["", '  <span class="p">vindex</span> <span class="d">0.6.0</span>  <span class="b">support_bot.jsonl</span> <span class="d">· 240 cases</span>'],
       ["", ""],
-      ["", '  <span class="r">✗</span> script_adherence       <span class="y">█████████████░░</span> <span class="b"> 86.7%</span>  <span class="d">208/240</span>'],
-      ["", '  <span class="g">✓</span> check_trace            <span class="g">███████████████</span> <span class="b">100.0%</span>  <span class="d">64/64</span>'],
-      ["", '  <span class="g">✓</span> indic_judge            <span class="g">██████████████░</span> <span class="b"> 96.3%</span>  <span class="d">231/240</span>'],
+      ["", `  <span class="r">✗</span> script_adherence   ${bar(86.7, "warn")}  <span class="b"> 86.7%</span>  <span class="d">208/240 passed</span>`],
+      ["", `  <span class="g">✓</span> check_trace        ${bar(100, "ok")}  <span class="b">100.0%</span>  <span class="d">64/64 passed</span>`],
+      ["", `  <span class="g">✓</span> indic_judge        ${bar(96.3, "ok")}  <span class="b"> 96.3%</span>  <span class="d">231/240 passed</span>`],
       ["", ""],
       ["", '  <span class="b">Failures</span>'],
       ["", ""],
       ["", '  <span class="r">●</span> <span class="b">refund-017</span> <span class="d">·</span> script_adherence <span class="d">·</span> <span class="y">script_mismatch</span>'],
       ["", '    <span class="d">prompt  </span> Mera refund kab tak aayega?'],
       ["", '    <span class="d">response</span> आपका रिफंड 5-7 कार्यदिवसों में आ जाएगा।'],
-      ["", '    <span class="d">reason  </span> prompt is code-mixed; response in devanagari,'],
-      ["", '             not Roman script.'],
+      ["", '    <span class="d">reason  </span> prompt is code-mixed; response in devanagari, not Roman script.'],
       ["", '  <span class="d">  … 31 more</span>'],
       ["", ""],
       ["", '  <span class="r">FAILED</span> script_adherence below 95%'],
@@ -167,9 +167,9 @@
   // Iteration order matches vindex.script.SCRIPT_RANGES (ties go to the earlier script).
   const ORDER = ["devanagari", "gurmukhi", "gujarati", "odia", "tamil", "telugu", "kannada", "malayalam", "bengali"];
   const COLORS = {
-    roman: "#8a7e72", devanagari: "#e8890c", bengali: "#c8361d", gurmukhi: "#7a4fd0",
-    gujarati: "#2d7a4c", odia: "#c43a7a", tamil: "#27335e", telugu: "#1f8a99",
-    kannada: "#b8860b", malayalam: "#5b8c2a",
+    roman: "#a1a1aa", devanagari: "#ff9933", bengali: "#ff5e62", gurmukhi: "#b48cff",
+    gujarati: "#3ddc97", odia: "#e0368a", tamil: "#7aa2ff", telugu: "#4fd1e8",
+    kannada: "#f5c451", malayalam: "#9be15d",
   };
   const HINDI = new Set(["hai", "hain", "kya", "nahi", "mera", "aap", "ka", "ki", "ke", "se", "mein", "tha", "hoga", "raha"]);
 
@@ -275,6 +275,28 @@
     }));
     update();
   }
+
+
+  /* ---------------- hero word cycle ---------------- */
+  const cyc = $("#cycle");
+  if (cyc && !reduced) {
+    const words = ["Hinglish.", "हिंदी.", "தமிழ்.", "বাংলা.", "తెలుగు.", "ಕನ್ನಡ.", "मराठी.", "ગુજરાતી."];
+    let w = 0;
+    setInterval(() => {
+      cyc.classList.add("out");
+      setTimeout(() => { w = (w + 1) % words.length; cyc.textContent = words[w]; cyc.classList.remove("out"); }, 350);
+    }, 2400);
+  }
+
+  /* ---------------- bento hover glow ---------------- */
+  $$(".cell").forEach((c) => c.addEventListener("pointermove", (e) => {
+    const r = c.getBoundingClientRect();
+    c.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    c.style.setProperty("--my", `${e.clientY - r.top}px`);
+  }));
+
+  /* ---------------- marquee: duplicate for a seamless loop ---------------- */
+  $$(".marquee-track").forEach((t) => { t.innerHTML += t.innerHTML; });
 
   /* ---------------- docs scrollspy ---------------- */
   const side = $(".sidebar");
